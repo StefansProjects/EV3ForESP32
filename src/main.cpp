@@ -24,6 +24,83 @@ unsigned long previousTime;
 
 int consoleCnt = 0;
 
+class RegulatedMotor
+{
+private:
+  int _motorPin1;
+  int _motorPin2;
+  int _tachoPin1;
+  int _tachoPin2;
+  double Kp = 10, Ki = 0.0, Kd = 1;
+  TaskHandle_t motorCtrlHandle = NULL;
+
+  uint64_t _position;
+
+  /**
+   * @see https://www.freertos.org/FreeRTOS_Support_Forum_Archive/July_2010/freertos_Is_it_possible_create_freertos_task_in_c_3778071.html
+   */
+  static void motorCtrlHelper(void *parm)
+  {
+    static_cast<RegulatedMotor *>(parm)->motorCtrl();
+  }
+
+  void motorCtrl()
+  {
+    for (;;)
+    { // infinite loop
+      _position = encoder.getCount();
+      Serial.print("Encoder count: ");
+      Serial.println(String((int32_t)_position));
+      vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+  }
+
+public:
+  RegulatedMotor(int motorPin1, int motorPin2, int tachoPin1, int tachoPin2)
+  {
+    _motorPin1 = motorPin1;
+    _motorPin2 = motorPin2;
+    _tachoPin1 = tachoPin1;
+    _tachoPin2 = tachoPin2;
+  }
+
+  void start()
+  {
+    pinMode(_motorPin1, OUTPUT);
+    pinMode(_motorPin2, OUTPUT);
+
+    digitalWrite(_motorPin1, LOW);
+
+    ledcSetup(0, 5000, 8);
+    ledcAttachPin(_motorPin1, 0);
+
+    if (motorCtrlHandle)
+    {
+      vTaskDelete(motorCtrlHandle);
+    }
+
+    xTaskCreate(
+        &motorCtrlHelper,
+        "Controlling motor",
+        10000,
+        this,
+        1,
+        &motorCtrlHandle // Task handle
+    );
+  }
+
+  void stop()
+  {
+    if (motorCtrlHandle)
+    {
+      vTaskDelete(motorCtrlHandle);
+      motorCtrlHandle = nullptr;
+    }
+  }
+};
+
+RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
+
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
   Serial.println("writeValueCallback: ");
@@ -49,6 +126,7 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
 
 void setup()
 {
+  /*
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
 
@@ -57,7 +135,10 @@ void setup()
   ledcSetup(0, 5000, 8);
   ledcAttachPin(motor1Pin1, 0);
 
+  */
   encoder.attachHalfQuad(tacho1Pin1, tacho1Pin2);
+
+  motor.start();
 
   Serial.begin(115200);
   // define the callback function if a write message event on the characteristic occurs
@@ -110,6 +191,7 @@ void loop()
   dutyCycle = 0;
   */
 
+  /*
   int32_t input = (int32_t)encoder.getCount();
   unsigned long currentTime = millis();
   unsigned long elapsedTime = currentTime - previousTime;
@@ -150,4 +232,5 @@ void loop()
     Serial.println(rateError);
     consoleCnt = 0;
   }
+  */
 }

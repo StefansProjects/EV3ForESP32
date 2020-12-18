@@ -36,3 +36,15 @@ Rot (GND) -> 3
 Grün (5V) -> 4
 Gelb (DATA1) -> 5
 Blau (DATA2) -> 6
+
+## Wireing
+
+Directly connect Motor1/2 to output of motor driver `DRV8833`.
+Directly connect VCC5V to 5V.
+
+Connect Tacho1/2 to either `74HCT14D` Hex inverting Schmitt trigger for use as tacho signals only, or *TEST* a TXB0108 level converter when using both as motor tachos and sensor port!
+
+
+## Protocol
+
+https://sourceforge.net/p/lejos/wiki/UART%20Sensor%20Protocol/

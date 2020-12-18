@@ -5,6 +5,8 @@
 #include <Wire.h>
 #include <ESP32Encoder.h>
 #include "RegulatedMotor.h"
+#include "SoftwareSerial.h"
+#include "EV3SensorPort.h"
 
 const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
@@ -13,7 +15,9 @@ const int tacho1Pin2 = 19;
 // create a hub instance
 Lpf2HubEmulation myEmulatedHub("TrainHub", HubType::POWERED_UP_HUB);
 
-RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
+// RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
+SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
+EV3SensorPort sensor(&swSerial);
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
@@ -41,13 +45,16 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
 void setup()
 {
 
-  motor.start();
+  // motor.start();
+  swSerial.begin(2400);
 
   Serial.begin(115200);
   // define the callback function if a write message event on the characteristic occurs
   Serial.println("Initalize virtual hub");
   myEmulatedHub.setWritePortCallback(&writeValueCallback);
   myEmulatedHub.start();
+
+  sensor.start();
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;
@@ -70,6 +77,7 @@ void loop()
     delay(1000);
   }
 
+  /*
   if (console_delay == 10)
   {
     Serial.print("Position ");
@@ -125,6 +133,7 @@ void loop()
 
     motor.set(RegulationType::POSITION, pos, Kp, Ki, Kd);
   }
+  */
 
   delay(50);
 }

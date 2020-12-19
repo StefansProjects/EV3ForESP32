@@ -317,6 +317,9 @@ public:
      */
     void coast()
     {
+        xSemaphoreTake(_pidMutex, portMAX_DELAY);
+        _reg_type = RegulationType::NONE;
+        xSemaphoreGive(_pidMutex);
         switch (_motorState)
         {
         case MotorState::COAST:
@@ -344,6 +347,9 @@ public:
      */
     void brake()
     {
+        xSemaphoreTake(_pidMutex, portMAX_DELAY);
+        _reg_type = RegulationType::NONE;
+        xSemaphoreGive(_pidMutex);
         switch (_motorState)
         {
         case MotorState::BRAKE:

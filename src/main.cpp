@@ -12,12 +12,12 @@ const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
 const int tacho1Pin1 = 18;
 const int tacho1Pin2 = 19;
+const int OE_levelshifter = 23;
 // create a hub instance
-Lpf2HubEmulation myEmulatedHub("TrainHub", HubType::POWERED_UP_HUB);
+// Lpf2HubEmulation myEmulatedHub("TrainHub", HubType::POWERED_UP_HUB);
 
 // RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
 SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
-EV3SensorPort sensor(&swSerial);
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
@@ -44,17 +44,30 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
 
 void setup()
 {
+  pinMode(motor1Pin1, OUTPUT);
+  pinMode(motor1Pin2, OUTPUT);
 
+  // OE enable of level shifter
+  pinMode(OE_levelshifter, OUTPUT);
+
+  // Set motors to coast mode
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, LOW);
+
+  EV3SensorPort sensor(&swSerial, [](int v) { swSerial.begin(v); });
   // motor.start();
   swSerial.begin(2400);
 
   Serial.begin(115200);
   // define the callback function if a write message event on the characteristic occurs
   Serial.println("Initalize virtual hub");
-  myEmulatedHub.setWritePortCallback(&writeValueCallback);
-  myEmulatedHub.start();
+  //myEmulatedHub.setWritePortCallback(&writeValueCallback);
+  //myEmulatedHub.start();
 
-  sensor.start();
+  digitalWrite(OE_levelshifter, HIGH);
+
+  delay(1000);
+  sensor.begin(3);
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;
@@ -65,6 +78,7 @@ void loop()
 {
   // if an app is connected, attach some devices on the ports to signalize
   // the app that values could be received/written to that ports
+  /*
   if (myEmulatedHub.isConnected && !myEmulatedHub.isPortInitialized)
   {
     delay(1000);
@@ -76,6 +90,7 @@ void loop()
     myEmulatedHub.attachDevice((byte)PoweredUpHubPort::B, DeviceType::TRAIN_MOTOR);
     delay(1000);
   }
+  */
 
   /*
   if (console_delay == 10)

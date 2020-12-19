@@ -1,6 +1,15 @@
 {
     "files.associations": {
         "array": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "typeinfo": "cpp",
+        "new": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "initializer_list": "cpp",
+        "functional": "cpp"
     }
 }

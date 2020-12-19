@@ -145,7 +145,7 @@ bool EV3SensorPort::parseInfoMessage(byte message, EV3SensorInfo *info)
 #ifdef EV3SENSOR_SERIAL_DEBUG
     if (infoType == 0)
     {
-        Serial.println("\n-----------------------------------------------------");
+        Serial.println("-----------------------------------------------------");
     }
     Serial.print("info message ");
     Serial.print(infoType);
@@ -193,7 +193,7 @@ bool EV3SensorPort::parseSymbolNameMessage(byte *header, EV3SensorInfo *info)
         info->mode = payload[0] & 0b111;
         // Check actual name length
         info->name = makeStringFromPayload(payload + 2, msgLenght);
-        //  delete[] payload;
+        delete[] payload;
 #ifdef EV3SENSOR_SERIAL_DEBUG
         Serial.print("Found Symbol ");
         Serial.print(info->name);
@@ -229,7 +229,7 @@ bool EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
         info->mode = payload[0] & 0b111;
         // Check actual name length
         info->name = makeStringFromPayload(payload + 2, msgLenght);
-        //  delete[] payload;
+        delete[] payload;
 #ifdef EV3SENSOR_SERIAL_DEBUG
         Serial.print("Found name ");
         Serial.print(info->name);

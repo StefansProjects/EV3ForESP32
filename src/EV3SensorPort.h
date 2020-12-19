@@ -224,6 +224,7 @@ public:
 #ifdef EV3SENSOR_SERIAL_DEBUG
                     Serial.println("Failed to parse mode count -> restart!");
 #endif
+                    xSemaphoreGive(_serialMutex);
                     return this->begin(retries - 1);
                 }
                 _config.infos = new EV3SensorInfo[_config.modes];
@@ -235,6 +236,7 @@ public:
 #ifdef EV3SENSOR_SERIAL_DEBUG
                     Serial.println("Failed to parse sensor uart speed -> restart!");
 #endif
+                    xSemaphoreGive(_serialMutex);
                     return this->begin(retries - 1);
                 }
             }
@@ -242,7 +244,7 @@ public:
             {
                 waitingForConfig = false;
 #ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("\n-----------------------------------------------------");
+                Serial.println("-----------------------------------------------------");
                 Serial.println("Received ACK - end of sensor config!!");
 #endif
             }
@@ -256,11 +258,29 @@ public:
 #ifdef EV3SENSOR_SERIAL_DEBUG
                     Serial.println("Failed to parse sensor mode -> restart!");
 #endif
+                    xSemaphoreGive(_serialMutex);
                     return this->begin(retries - 1);
                 }
             }
         }
+#ifdef EV3SENSOR_SERIAL_DEBUG
+        Serial.print("Switching UART baudrate to ");
+        Serial.println(this->_config.speed);
+#endif
+        this->_baudrateSetter(this->_config.speed);
         xSemaphoreGive(_serialMutex);
+
+#ifdef EV3SENSOR_SERIAL_DEBUG
+        Serial.println("Starting background communication task");
+#endif
+        xTaskCreate(
+            &sensorCommThreadHelper,
+            "EV3_SEN_P",
+            60000,
+            this,
+            1,
+            &_sensorCommThreadHandle // Task handle
+        );
 
         return true;
     }

@@ -25,8 +25,8 @@ struct EV3SensorInfo
 struct SensorConfig
 {
     uint8_t type;
-    uint8_t modes;
-    uint8_t modes_shown;
+    uint8_t modes = 0;
+    uint8_t modes_shown = 0;
     uint32_t speed;
 
     EV3SensorInfo *infos;
@@ -45,16 +45,16 @@ private:
 
     std::function<void(int)> _baudrateSetter;
 
-    const uint8_t SYNC = 0b00000000;
-    const uint8_t NACK = 0b00000010;
-    const uint8_t ACK = 0b00000100;
-    const uint8_t TYPE = 0b01000000;
-    const uint8_t MODES = 0b01001001;
-    const uint8_t SPEED = 0b01010010;
-    const uint8_t SELECT = 0b01000011;
+    const static uint8_t SYNC = 0b00000000;
+    const static uint8_t NACK = 0b00000010;
+    const static uint8_t ACK = 0b00000100;
+    const static uint8_t TYPE = 0b01000000;
+    const static uint8_t MODES = 0b01001001;
+    const static uint8_t SPEED = 0b01010010;
+    const static uint8_t SELECT = 0b01000011;
 
-    const uint8_t TYPE_COLOR_SENSOR = 29;
-    const uint8_t TYPE_IR_SENSOR = 33;
+    const static uint8_t TYPE_COLOR_SENSOR = 29;
+    const static uint8_t TYPE_IR_SENSOR = 33;
 
     // Prevent simultanious access quadrature encoder
     SemaphoreHandle_t _serialMutex;
@@ -69,7 +69,7 @@ private:
     /**
      * Makes a string from a sensor payload. Since the payload is padded with zeros, the method tries first to determine the true size of the string.
      */
-    char *  EV3SensorPort::makeStringFromPayload(uint8_t data[], int maxlength);
+    char *makeStringFromPayload(uint8_t data[], int maxlength);
     /*
      * Utility method to bind a class method to a FreeRTOS task.
      * 
@@ -105,37 +105,59 @@ private:
      * Determines wheter the next message is a info message. If yes trie parse it and return the mode number.
      * If it is not, return the message byte.
      */
-    uint8_t parseInfoMessage(EV3SensorInfo *info);
+    bool parseInfoMessage(byte message, EV3SensorInfo *info);
 
     /**
      *  Parses the first info message (= mode name) for a supported mode
      */
-    uint8_t parseModeNameMessage(byte *header, EV3SensorInfo *info);
+    bool parseModeNameMessage(byte *header, EV3SensorInfo *info);
+
+    /**
+     * Parses the symbol name of the SI unit of a supported mode.
+     */
+    bool parseSymbolNameMessage(byte *header, EV3SensorInfo *info);
 
     /**
      * Pares the format message containing the format of the data message from sensor -> host.
      */
-    uint8_t parseFormatMessage(byte *header, EV3SensorInfo *info);
+    bool parseFormatMessage(byte *header, EV3SensorInfo *info);
 
     /**
      *  Parses the second info message (= mode raw sensor readings) for a supported mode
      */
-    uint8_t parseModeRangeMessage(byte *header, EV3SensorInfo *info);
+    bool parseModeRangeMessage(byte *header, EV3SensorInfo *info);
     /**
      * Parses the next uart speed from the stream.
      */
-    bool parseSpeed(SensorConfig *config);
+    bool parseSpeed(byte header, SensorConfig *config);
 
     /**
      * Parses the mode counts from the stream.
      */
-    bool parseModeCount(SensorConfig *config);
+    bool parseModeCount(byte header, SensorConfig *config);
 
     /**
      * Parses the type of  sensor from the stream.
      * If configures, also waits for the unique type byte to come.
      */
-    bool parseType(SensorConfig *config, bool waitForType);
+    bool parseType(byte message, SensorConfig *config);
+
+    /**
+     * Utlity method the read the next available byte from the connection.
+     */
+    byte readNextAvailableByte()
+    {
+        byte message;
+        while (true)
+        {
+            if (_connection->available() > 0)
+            {
+                message = _connection->read();
+                break;
+            }
+        }
+        return message;
+    }
 
 public:
     EV3SensorPort(Stream *connection, std::function<void(int)> baudrateSetter) : _connection(connection), _baudrateSetter(baudrateSetter)
@@ -180,81 +202,65 @@ public:
     bool begin(int retries = 9)
     {
         stop();
-
+        byte message = 0;
         xSemaphoreTake(_serialMutex, portMAX_DELAY);
-        if (!this->parseType(&_config, true))
+        // First wait for the first TYPE message. Its always the first message!!!!
+        while (message != TYPE)
         {
-            if (retries > 0)
+            message = this->readNextAvailableByte();
+        }
+
+        this->parseType(message, &_config);
+
+        // Wait for the next message
+        bool waitingForConfig = true;
+        while (waitingForConfig)
+        {
+            message = this->readNextAvailableByte();
+            if (message == MODES)
             {
+                if (!this->parseModeCount(message, &_config))
+                {
 #ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Retry again to find start sensor (Failed to parse type)");
+                    Serial.println("Failed to parse mode count -> restart!");
 #endif
-                xSemaphoreGive(_serialMutex);
-                return begin(retries - 1);
+                    return this->begin(retries - 1);
+                }
+                _config.infos = new EV3SensorInfo[_config.modes];
             }
-            else
+            else if (message == SPEED)
             {
-                xSemaphoreGive(_serialMutex);
-                return false;
+                if (!this->parseSpeed(message, &_config))
+                {
+#ifdef EV3SENSOR_SERIAL_DEBUG
+                    Serial.println("Failed to parse sensor uart speed -> restart!");
+#endif
+                    return this->begin(retries - 1);
+                }
+            }
+            else if (message == ACK)
+            {
+                waitingForConfig = false;
+#ifdef EV3SENSOR_SERIAL_DEBUG
+                Serial.println("\n-----------------------------------------------------");
+                Serial.println("Received ACK - end of sensor config!!");
+#endif
+            }
+            else if (message & 0b10000000)
+            {
+                // Found info message
+                byte modeNumber = message & 0b111;
+                EV3SensorInfo info = _config.infos[modeNumber];
+                if (!this->parseInfoMessage(message, &info))
+                {
+#ifdef EV3SENSOR_SERIAL_DEBUG
+                    Serial.println("Failed to parse sensor mode -> restart!");
+#endif
+                    return this->begin(retries - 1);
+                }
             }
         }
-        if (!this->parseModeCount(&_config))
-        {
-            if (retries > 0)
-            {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Retry again to find start sensor (Failed to parse mode count)");
-#endif
-                xSemaphoreGive(_serialMutex);
-                return begin(retries - 1);
-            }
-            else
-            {
-                xSemaphoreGive(_serialMutex);
-                return false;
-            }
-        }
-        if (!this->parseSpeed(&_config))
-        {
-            if (retries > 0)
-            {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Retry again to find start sensor (Failed to parse sensor baudrate)");
-#endif
-                xSemaphoreGive(_serialMutex);
-                return begin(retries - 1);
-            }
-            else
-            {
-                xSemaphoreGive(_serialMutex);
-                return false;
-            }
-        }
-        _config.infos = new EV3SensorInfo[_config.modes_shown];
-
-        // Mode we currrently get infos for
-        byte currentMode = -1;
-        // Position in the info array
-        byte pos = -1;
-
-        for(int i = 0;i<)
-
-
-
-        this->_baudrateSetter(this->_config.speed);
         xSemaphoreGive(_serialMutex);
-
-        // Pass control to own communication thread.
-
-        delay(40);
-        xTaskCreate(
-            &sensorCommThreadHelper,
-            "EV3Sensor",
-            10000,
-            this,
-            1,
-            &_sensorCommThreadHandle // Task handle
-        );
 
         return true;
     }

@@ -32,10 +32,12 @@ char *EV3SensorPort::makeStringFromPayload(uint8_t data[], int maxlength)
     return result;
 }
 
-bool EV3SensorPort::parseSpeed(SensorConfig *config)
+bool EV3SensorPort::parseSpeed(byte header, SensorConfig *config)
 {
     byte payload[6];
-    _connection->readBytes(payload, 6);
+    payload[0] = header;
+
+    _connection->readBytes(payload + 1, 5);
     if (payload[0] != SPEED)
     {
 #ifdef EV3SENSOR_SERIAL_DEBUG
@@ -61,10 +63,11 @@ bool EV3SensorPort::parseSpeed(SensorConfig *config)
     }
 }
 
-bool EV3SensorPort::parseModeCount(SensorConfig *config)
+bool EV3SensorPort::parseModeCount(byte header, SensorConfig *config)
 {
     byte payload[4];
-    _connection->readBytes(payload, 4);
+    payload[0] = header;
+    _connection->readBytes(payload + 1, 3);
     if (payload[0] != MODES)
     {
 #ifdef EV3SENSOR_SERIAL_DEBUG
@@ -94,35 +97,11 @@ bool EV3SensorPort::parseModeCount(SensorConfig *config)
     }
 }
 
-bool EV3SensorPort::parseType(SensorConfig *config, bool waitForType)
+bool EV3SensorPort::parseType(byte message, SensorConfig *config)
 {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.println("Start searching for EV3 sensor type ...");
-#endif
     byte payload[3];
-    while (true)
-    {
-        if (_connection->available() > 0)
-        {
-            byte v = _connection->read();
-            if (v == TYPE)
-            {
-                payload[0] = v;
-                break;
-            }
-            else
-            {
-                if (waitForType)
-                {
-                    continue;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-    }
+    payload[0] = message;
+
     _connection->readBytes(payload + 1, 2);
     if (calculateChecksum(payload, 2) == payload[2])
     {
@@ -155,51 +134,86 @@ float EV3SensorPort::makeFloatFromPayload(uint8_t data[])
     return (float)(data[3] << 24) + (data[2] << 16) + (data[1] << 8) + (data[0] << 0);
 }
 
-uint8_t EV3SensorPort::parseInfoMessage(EV3SensorInfo *info)
+bool EV3SensorPort::parseInfoMessage(byte message, EV3SensorInfo *info)
 {
     byte header[2];
-    // First check if the next message can be an info message at all.
-    _connection->readBytes(header, 1);
-    byte message = header[0];
+    header[0] = message;
+    _connection->readBytes(header + 1, 1);
 
-    if (message & 0b10000000)
-    {
-        // This might be a info message, check the info byte.
-        byte infoType;
-        _connection->readBytes(header + 1, 1);
-
-        infoType = header[1];
+    byte infoType = header[1];
 
 #ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Parsing info message ");
-        Serial.println(infoType);
+    if (infoType == 0)
+    {
+        Serial.println("\n-----------------------------------------------------");
+    }
+    Serial.print("info message ");
+    Serial.print(infoType);
+    Serial.print(" ");
 #endif
 
-        switch (infoType)
-        {
-        case 0:
-            return parseModeNameMessage(header, info);
-            break;
-        case 1:
-        case 2:
-        case 3:
-            return parseModeRangeMessage(header, info);
-            break;
+    switch (infoType)
+    {
+    case 0:
+        return parseModeNameMessage(header, info);
+        break;
+    case 1:
+    case 2:
+    case 3:
+        return parseModeRangeMessage(header, info);
+        break;
 
-        case 0x80:
-            return parseFormatMessage(header, info);
-            break;
-        case 4:
-            return -1; // TODO implement;
-            break;
-        default:
-            return -1;
-        }
+    case 0x80:
+        return parseFormatMessage(header, info);
+        break;
+    case 4:
+        return parseSymbolNameMessage(header, info);
+        break;
+    default:
+#ifdef EV3SENSOR_SERIAL_DEBUG
+        Serial.println("Unsupported message type !!");
+#endif
+        return false;
     }
-    return message;
 }
 
-uint8_t EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
+bool EV3SensorPort::parseSymbolNameMessage(byte *header, EV3SensorInfo *info)
+{
+    uint8_t msgLenght = 1 << ((header[0] & 0b00111000) >> 3); // 2^LLL;
+    byte *payload = new byte[2 + msgLenght + 1];
+
+    // Copy header to payload to simplify checksum calculation
+    memcpy(payload, header, 2);
+
+    // Read the message string
+    _connection->readBytes(payload + 2, msgLenght + 1); // Msg + checksum
+
+    if (calculateChecksum(payload, msgLenght + 2) == payload[msgLenght + 2])
+    {
+        info->mode = payload[0] & 0b111;
+        // Check actual name length
+        info->name = makeStringFromPayload(payload + 2, msgLenght);
+        //  delete[] payload;
+#ifdef EV3SENSOR_SERIAL_DEBUG
+        Serial.print("Found Symbol ");
+        Serial.print(info->name);
+        Serial.print(" for sensor mode ");
+        Serial.println(info->mode);
+
+#endif
+        return true;
+    }
+    else
+    {
+        delete[] payload;
+#ifdef EV3SENSOR_SERIAL_DEBUG
+        Serial.print("Wrong checksum for sensor info 0 ");
+#endif
+        return false;
+    }
+}
+
+bool EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
 {
     uint8_t msgLenght = 1 << ((header[0] & 0b00111000) >> 3); // 2^LLL;
     byte *payload = new byte[2 + msgLenght + 1];
@@ -219,14 +233,11 @@ uint8_t EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
 #ifdef EV3SENSOR_SERIAL_DEBUG
         Serial.print("Found name ");
         Serial.print(info->name);
-        Serial.print(" (length = ");
-        Serial.print(strlen(info->name));
-        Serial.print(" )");
         Serial.print(" for sensor mode ");
         Serial.println(info->mode);
 
 #endif
-        return info->mode;
+        return true;
     }
     else
     {
@@ -234,11 +245,11 @@ uint8_t EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
 #ifdef EV3SENSOR_SERIAL_DEBUG
         Serial.print("Wrong checksum for sensor info 0 ");
 #endif
-        return -1;
+        return false;
     }
 }
 
-uint8_t EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
+bool EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
 {
     byte payload[2 + 4 + 1];
     memcpy(payload, header, 2);
@@ -264,7 +275,7 @@ uint8_t EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
         Serial.print(" for sensor mode ");
         Serial.println(info->mode);
 #endif
-        return info->mode;
+        return true;
     }
     else
     {
@@ -272,11 +283,11 @@ uint8_t EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
         Serial.print("Wrong checksum for sensor info ");
         Serial.println(payload[1]);
 #endif
-        return -1;
+        return false;
     }
 }
 
-uint8_t EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
+bool EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
 {
     byte payload[11];
     memcpy(payload, header, 2);
@@ -334,10 +345,10 @@ uint8_t EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
             Serial.print(" for sensor mode ");
             Serial.println(info->mode);
 #endif
-            return -1;
+            return false;
         }
 
-        return info->mode;
+        return true;
     }
     else
     {
@@ -345,6 +356,6 @@ uint8_t EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
         Serial.print("Wrong checksum for sensor info ");
         Serial.println(infoType);
 #endif
-        return -1;
+        return false;
     }
 }

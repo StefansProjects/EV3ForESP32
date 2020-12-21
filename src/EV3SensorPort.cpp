@@ -1,5 +1,7 @@
 #include "EV3SensorPort.h"
 
+static const char *TAG = "EV3SensorPort";
+
 uint8_t EV3SensorPort::calculateChecksum(uint8_t data[], int length)
 {
     uint8_t result = 0xff;
@@ -48,27 +50,15 @@ bool EV3SensorPort::parseSpeed(byte header, EV3SensorConfig *config)
     _buffer[0] = header;
 
     _connection->readBytes(_buffer + 1, 5);
-    if (_buffer[0] != SPEED)
-    {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Trying to parse speed system message but not found ");
-#endif
-        return false;
-    }
     if (calculateChecksum(_buffer, 5) == _buffer[5])
     {
         config->speed = (_buffer[4] << 24) + (_buffer[3] << 16) + (_buffer[2] << 8) + (_buffer[1] << 0);
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found EV3 sensor baudrate ");
-        Serial.println(config->speed);
-#endif
+        ESP_LOGV(TAG, "Found EV3 sensor to expect %d baud as communication baudrate", config->speed);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Wrong checksum for EV3 sensor baudrate ");
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for SPEED system message.");
         return false;
     }
 }
@@ -77,31 +67,16 @@ bool EV3SensorPort::parseModeCount(byte header, EV3SensorConfig *config)
 {
     _buffer[0] = header;
     _connection->readBytes(_buffer + 1, 3);
-    if (_buffer[0] != MODES)
-    {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Trying to parse modes system message but not found ");
-#endif
-        return false;
-    }
     if (calculateChecksum(_buffer, 3) == _buffer[3])
     {
         config->modes = _buffer[1] + 1;
         config->modes_shown = _buffer[2] + 1;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found EV3 sensor ");
-        Serial.print(config->modes);
-        Serial.print(" modes with ");
-        Serial.print(config->modes_shown);
-        Serial.println(" modes presented");
-#endif
+        ESP_LOGV(TAG, "Found EV3 sensor with %d modes and %d modes presented.", config->modes, config->modes_shown);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Trying to parse modes system message but checksum wrong");
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for MODES system message.");
         return false;
     }
 }
@@ -113,26 +88,13 @@ bool EV3SensorPort::parseType(byte message, EV3SensorConfig *config)
     _connection->readBytes(_buffer + 1, 2);
     if (calculateChecksum(_buffer, 2) == _buffer[2])
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found EV3 sensor ");
-        Serial.print(_buffer[1], HEX);
-        Serial.println(" with correct checksum");
-#endif
-
         config->type = _buffer[1];
+        ESP_LOGD(TAG, "Found EV3 sensor: %d.", config->type);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found EV3 sensor ");
-        Serial.print(_buffer[1], HEX);
-        Serial.print(" with wrong checksum!!");
-        Serial.print(" Should be ");
-        Serial.print(calculateChecksum(_buffer, 2));
-        Serial.print(" was ");
-        Serial.println(_buffer[2]);
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for TYPE system message.");
         return false;
     }
 }
@@ -151,15 +113,10 @@ bool EV3SensorPort::parseInfoMessage(byte message, EV3SensorInfo *info)
 
     byte infoType = _buffer[1];
 
-#ifdef EV3SENSOR_SERIAL_DEBUG
     if (infoType == 0)
     {
-        Serial.println("-----------------------------------------------------");
+        ESP_LOGV(TAG, "-----------------------------------------------------");
     }
-    Serial.print("info message ");
-    Serial.print(infoType);
-    Serial.print(" ");
-#endif
 
     switch (infoType)
     {
@@ -180,12 +137,6 @@ bool EV3SensorPort::parseInfoMessage(byte message, EV3SensorInfo *info)
         break;
     default:
         return parseUnknownMessage(_buffer);
-        /*
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Unsupported message type !!");
-#endif
-        return false;
-        */
     }
 }
 
@@ -205,27 +156,8 @@ bool EV3SensorPort::parseUnknownMessage(byte *header)
         checksum = _buffer[msglength - 1];
         if (calculateChecksum(_buffer, msglength - 1) == checksum)
         {
-// Message found !!!
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print(" Unknown message ");
-            Serial.print(_buffer[0]);
-            Serial.print(" for sensor mode ");
-            Serial.print(_buffer[1]);
-            Serial.print(" (mode = ");
-            Serial.print(mode);
-            Serial.print(" length = ");
-            Serial.print(msgLenght);
-            Serial.print(") of overall size ");
-            Serial.print(msglength);
-            Serial.print(" and content ");
-            for (int i = 2; i < msglength; i++)
-            {
-                Serial.print(_buffer[i], HEX);
-                Serial.print(" ");
-            }
-            Serial.println("");
-
-#endif
+            // Message found !!!
+            ESP_LOGD(TAG, "Unknown message %x (mode = %d, length = %d) for sensor mode %d", _buffer[0], mode, msgLenght, _buffer[1]);
             break;
         }
         else
@@ -253,21 +185,13 @@ bool EV3SensorPort::parseSymbolNameMessage(byte *header, EV3SensorInfo *info)
     {
         info->mode = _buffer[0] & 0b111;
         // Check actual name length
-        info->name = makeStringFromPayload(_buffer + 2, msgLenght);
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found Symbol ");
-        Serial.print(info->name);
-        Serial.print(" for sensor mode ");
-        Serial.println(info->mode);
-
-#endif
+        info->siSymbol = makeStringFromPayload(_buffer + 2, msgLenght);
+        ESP_LOGV(TAG, "Found symbol '%s' for sensor mode %d", info->siSymbol, info->mode);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Wrong checksum for sensor info 0 ");
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for INFO system message 4.");
         return false;
     }
 }
@@ -288,20 +212,12 @@ bool EV3SensorPort::parseModeNameMessage(byte *header, EV3SensorInfo *info)
         info->mode = _buffer[0] & 0b111;
         // Check actual name length
         info->name = makeStringFromPayload(_buffer + 2, msgLenght);
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Found name ");
-        Serial.print(info->name);
-        Serial.print(" for sensor mode ");
-        Serial.println(info->mode);
-
-#endif
+        ESP_LOGV(TAG, "Found name '%s' for sensor mode %d", info->name, info->mode);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Wrong checksum for sensor info 0 ");
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for INFO system message 0.");
         return false;
     }
 }
@@ -320,26 +236,12 @@ bool EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
         info->numberOfDecimals = _buffer[5];
         info->mode = _buffer[0] & 0b111;
 
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Number of items per message ");
-        Serial.print(info->numberOfItems);
-        Serial.print(" with type ");
-        Serial.print(static_cast<uint8_t>(info->dataTypeOfItem));
-        Serial.print(" with digits ");
-        Serial.print(info->numberOfDigits);
-        Serial.print(" with decimals ");
-        Serial.print(info->numberOfDecimals);
-        Serial.print(" for sensor mode ");
-        Serial.println(info->mode);
-#endif
+        ESP_LOGV(TAG, "Number of items per message %d of type %d with %d digits and with % decimals for sensor mode %d", info->numberOfItems, static_cast<uint8_t>(info->dataTypeOfItem), info->numberOfDigits, info->numberOfDecimals, info->mode);
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Wrong checksum for sensor info ");
-        Serial.println(_buffer[6]);
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for INFO system message 0x80.");
         return false;
     }
 }
@@ -362,67 +264,34 @@ bool EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
         case 1:
             info->rawLowest = lowest;
             info->rawHighest = highest;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print("Found RAW lowest value ");
-            Serial.print(info->rawLowest);
-            Serial.print(" and RAW highest value ");
-            Serial.print(info->rawHighest);
-            Serial.print(" for sensor mode ");
-            Serial.println(info->mode);
-#endif
+            ESP_LOGV(TAG, "RAW value between %f and %f for sensor mode %d", info->rawLowest, info->rawHighest, info->mode);
             break;
         case 2:
             info->pctLowest = lowest;
             info->pctHighest = highest;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print("Found PCT lowest value ");
-            Serial.print(info->pctLowest);
-            Serial.print(" and PCT highest value ");
-            Serial.print(info->pctHighest);
-            Serial.print(" for sensor mode ");
-            Serial.println(info->mode);
-#endif
+            ESP_LOGV(TAG, "PCT value between %f and %f for sensor mode %d", info->pctLowest, info->pctHighest, info->mode);
             break;
         case 3:
             info->siLowest = lowest;
             info->siHighest = highest;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print("Found SI lowest value ");
-            Serial.print(info->siLowest);
-            Serial.print(" and SI highest value ");
-            Serial.print(info->siHighest);
-            Serial.print(" for sensor mode ");
-            Serial.println(info->mode);
-#endif
+            ESP_LOGV(TAG, "SI value between %f and %f for sensor mode %d", info->siLowest, info->siHighest, info->mode);
             break;
         default:
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print("Unexpected info type ");
-            Serial.print(infoType);
-            Serial.print(" for sensor mode ");
-            Serial.println(info->mode);
-#endif
+            ESP_LOGD(TAG, "Unexpected info type %d for sensor mode %d", infoType, info->mode);
             return false;
         }
-
         return true;
     }
     else
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Wrong checksum for sensor info ");
-        Serial.println(infoType);
-#endif
+        ESP_LOGD(TAG, "Wrong checksum for INFO system message %d.", infoType);
         return false;
     }
 }
 
 void EV3SensorPort::selectSensorMode(uint8_t mode)
 {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.print("Setting sensor to mode ");
-    Serial.println(mode);
-#endif
+    ESP_LOGD(TAG, "Setting sensor to mode %d", mode);
     xSemaphoreTake(_serialMutex, portMAX_DELAY);
     _buffer[0] = SELECT;
     _buffer[1] = mode;
@@ -434,6 +303,7 @@ void EV3SensorPort::selectSensorMode(uint8_t mode)
 
 void EV3SensorPort::stop()
 {
+    ESP_LOGD(TAG, "Stopping sensor");
 }
 
 void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
@@ -442,6 +312,7 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
     this->_baudrateSetter(2400);
     byte message = 0;
     xSemaphoreTake(_serialMutex, portMAX_DELAY);
+    ESP_LOGV(TAG, "Waiting from the first TYPE message from the EV3 sensor. %d retries left", retries);
     // First wait for the first TYPE message. Its always the first message!!!!
     while (message != TYPE)
     {
@@ -461,11 +332,8 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
         {
             if (!this->parseModeCount(message, &_config))
             {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Failed to parse mode count -> restart!");
-#endif
+                ESP_LOGE(TAG, "Failed to parse mode count -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
-
                 vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
             }
@@ -475,9 +343,7 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
         {
             if (!this->parseSpeed(message, &_config))
             {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Failed to parse sensor uart speed -> restart!");
-#endif
+                ESP_LOGE(TAG, "Failed to parse sensor uart speed -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
                 vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
@@ -486,10 +352,8 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
         else if (message == ACK)
         {
             waitingForConfig = false;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.println("-----------------------------------------------------");
-            Serial.println("Received ACK - end of sensor config!!");
-#endif
+            ESP_LOGV(TAG, "-----------------------------------------------------");
+            ESP_LOGV(TAG, "Fully received sensor config");
         }
         else if (message & 0b10000000)
         {
@@ -498,29 +362,24 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
             EV3SensorInfo info = _config.infos[modeNumber];
             if (!this->parseInfoMessage(message, &info))
             {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("Failed to parse sensor mode -> restart!");
-#endif
+                ESP_LOGE(TAG, "Failed to parse sensor info message -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
                 vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
             }
         }
     }
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.println("Reply with ACK ");
-#endif
+
+    ESP_LOGV(TAG, "Reply sensor config with ACK");
     _connection->write(ACK);
     _connection->flush();
 
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.print("Switching UART baudrate to ");
-    Serial.println(this->_config.speed);
-#endif
+    ESP_LOGV(TAG, "Set new UART speed to %d baud", this->_config.speed);
     this->_baudrateSetter(this->_config.speed);
     xSemaphoreGive(_serialMutex);
     onSuccess(this);
 
+    ESP_LOGV(TAG, "Initalization phase finished - switching to communication phase");
     this->sensorCommThread();
 }
 
@@ -569,13 +428,7 @@ void EV3SensorPort::sensorCommThread()
                 }
                 else
                 {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                    Serial.print("Got data message from sensor for mode ");
-                    Serial.print(mode);
-                    Serial.print(" with length ");
-                    Serial.print(msgLenght);
-                    Serial.println(" but with wrong checksum :/.");
-#endif
+                    ESP_LOGV(TAG, "Got data message from sensor for mode %d with length %d but wrong checksum.", mode, msgLenght);
                 }
             }
         }

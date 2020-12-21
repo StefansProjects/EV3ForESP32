@@ -2,8 +2,6 @@
 #include <Arduino.h>
 #include <functional>
 
-#define EV3SENSOR_SERIAL_DEBUG 1
-
 #ifndef EV3SensorPort_h
 #define EV3SensorPort_h
 

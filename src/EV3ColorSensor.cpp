@@ -1,5 +1,7 @@
 #include "EV3ColorSensor.h"
 
+const static char *TAG = "EV3ColorSensor";
+
 void EV3ColorSensor::messageHandler(uint8_t mode, uint8_t *message, int length)
 {
     switch (mode)
@@ -17,10 +19,7 @@ void EV3ColorSensor::messageHandler(uint8_t mode, uint8_t *message, int length)
             onColColor(static_cast<EV3ColorSensorColor>(message[0]));
         break;
     default:
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Currently not supported EV3 color sensor mode ");
-        Serial.println(mode);
-#endif
+        ESP_LOGE(TAG, "Currently not supported EV3 color sensor mode %d", mode);
     }
 }
 
@@ -52,5 +51,8 @@ void writeEV3ColorSensorColorToStream(EV3ColorSensorColor col, Stream *stream)
     case EV3ColorSensorColor::BROWN:
         stream->print("brown");
         break;
+    default:
+        ESP_LOGE(TAG, "Unknown color %d", static_cast<uint8_t>(col));
+        stream->print("unknown");
     }
 }

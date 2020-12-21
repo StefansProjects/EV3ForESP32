@@ -1,3 +1,4 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include <Arduino.h>
 #include "Lpf2HubEmulation.h"
 #include "LegoinoCommon.h"
@@ -9,6 +10,8 @@
 #include "EV3SensorPort.h"
 #include "EV3ColorSensor.h"
 #include "EV3IRSensor.h"
+
+static const char *TAG = "main";
 
 const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
@@ -80,8 +83,8 @@ void setupSensor1(void *param)
 
 void setup()
 {
-  esp_log_level_set("*", ESP_LOG_DEBUG);
-  ESP_LOGD("main", "Hello world!!");
+  esp_log_level_set("*", ESP_LOG_VERBOSE);
+  ESP_LOGD(TAG, "Hello world!!");
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
 
@@ -99,7 +102,7 @@ void setup()
 
   Serial.begin(115200);
   // define the callback function if a write message event on the characteristic occurs
-  Serial.println("Initalize virtual hub");
+  Serial.println("\nInitalize virtual hub");
   //myEmulatedHub.setWritePortCallback(&writeValueCallback);
   //myEmulatedHub.start();
 

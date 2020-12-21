@@ -385,7 +385,7 @@ void EV3SensorPort::stop()
 {
 }
 
-bool EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
+void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
 {
     stop();
     this->_baudrateSetter(2400);
@@ -459,17 +459,15 @@ bool EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
     onSuccess(this);
 
     this->sensorCommThread();
-
-    return true;
 }
 
 void EV3SensorPort::sensorCommThread()
 {
     for (;;)
     {
-        //xSemaphoreTake(_serialMutex, portMAX_DELAY);
+        xSemaphoreTake(_serialMutex, portMAX_DELAY);
         _connection->write(NACK);
+        xSemaphoreGive(_serialMutex);
         vTaskDelay(90 / portTICK_PERIOD_MS);
-        // xSemaphoreGive(_serialMutex);
     }
 }

@@ -20,6 +20,7 @@ const int OE_levelshifter = 23;
 // SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
 
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
+TaskHandle_t sensorHandle;
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
@@ -44,7 +45,7 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
   }
 }
 
-void setupSensor1()
+void setupSensor1(void *param)
 {
   sensor.begin([](EV3SensorPort *p) {
     Serial.print("Found sensor of type ");
@@ -77,16 +78,16 @@ void setup()
 
   digitalWrite(OE_levelshifter, HIGH);
 
-  /*xTaskCreate(
+  xTaskCreate(
       &setupSensor1,
-      "Controlling motor",
-      10000,
-      this,
+      "S1",
+      50000,
+      nullptr,
       1,
-      &_motorCtrlHandle // Task handle
-  );*/
+      &sensorHandle // Task handle
+  );
 
-  setupSensor1();
+  // setupSensor1(nullptr);
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;

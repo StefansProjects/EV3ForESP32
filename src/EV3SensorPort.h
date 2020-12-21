@@ -151,7 +151,9 @@ public:
     void selectSensorMode(uint8_t mode);
 
     /**
-     * Starts the EV3 Sensor communication protocol.
+     * Starts the EV3 sensor communication protocol.
+     * First reads the sensor configuration and calls the onSuccess callback afterwards. Then keeps the connection online by sending the sensor NACK regularly.
+     * Best start this method in its own FREERTOS thread.
      */
-    bool begin(std::function<void(EV3SensorPort *)> onSuccess, int retries = 9);
+    void begin(std::function<void(EV3SensorPort *)> onSuccess, int retries = 9);
 };

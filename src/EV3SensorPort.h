@@ -83,19 +83,7 @@ private:
         static_cast<EV3SensorPort *>(parm)->sensorCommThread();
     }
 
-    void sensorCommThread()
-    {
-        for (;;)
-        {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.println("Sending nack");
-#endif
-            //xSemaphoreTake(_serialMutex, portMAX_DELAY);
-            _connection->write(NACK);
-            vTaskDelay(90 / portTICK_PERIOD_MS);
-            // xSemaphoreGive(_serialMutex);
-        }
-    }
+    void sensorCommThread();
 
     /**
      * Makes a float from a sensor payload
@@ -145,19 +133,7 @@ private:
     /**
      * Utlity method the read the next available byte from the connection.
      */
-    byte readNextAvailableByte()
-    {
-        byte message;
-        while (true)
-        {
-            if (_connection->available() > 0)
-            {
-                message = _connection->read();
-                break;
-            }
-        }
-        return message;
-    }
+    byte readNextAvailableByte();
 
 public:
     EV3SensorPort(Stream *connection, std::function<void(int)> baudrateSetter) : _connection(connection), _baudrateSetter(baudrateSetter)
@@ -176,112 +152,15 @@ public:
     /**
      *  Stops the EV3 Sensor.   
      */
-    void stop()
-    {
-        if (_sensorCommThreadHandle)
-        {
-            vTaskDelete(_sensorCommThreadHandle);
-            _sensorCommThreadHandle = nullptr;
-        }
-    }
+    void stop();
 
-    void selectSensorMode(uint8_t mode)
-    {
-        byte payload[3];
-        payload[0] = SELECT;
-        payload[1] = mode;
-        payload[3] = this->calculateChecksum(payload, 2);
-        xSemaphoreTake(_serialMutex, portMAX_DELAY);
-        this->_connection->write(payload, 3);
-        xSemaphoreGive(_serialMutex);
-    }
+    /**
+     * Selects the working mode of the sensor
+     */
+    void selectSensorMode(uint8_t mode);
 
     /**
      * Starts the EV3 Sensor communication protocol.
      */
-    bool begin(int retries = 9)
-    {
-        stop();
-        byte message = 0;
-        xSemaphoreTake(_serialMutex, portMAX_DELAY);
-        // First wait for the first TYPE message. Its always the first message!!!!
-        while (message != TYPE)
-        {
-            message = this->readNextAvailableByte();
-        }
-
-        this->parseType(message, &_config);
-
-        // Wait for the next message
-        bool waitingForConfig = true;
-        while (waitingForConfig)
-        {
-            message = this->readNextAvailableByte();
-            if (message == MODES)
-            {
-                if (!this->parseModeCount(message, &_config))
-                {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                    Serial.println("Failed to parse mode count -> restart!");
-#endif
-                    xSemaphoreGive(_serialMutex);
-                    return this->begin(retries - 1);
-                }
-                _config.infos = new EV3SensorInfo[_config.modes];
-            }
-            else if (message == SPEED)
-            {
-                if (!this->parseSpeed(message, &_config))
-                {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                    Serial.println("Failed to parse sensor uart speed -> restart!");
-#endif
-                    xSemaphoreGive(_serialMutex);
-                    return this->begin(retries - 1);
-                }
-            }
-            else if (message == ACK)
-            {
-                waitingForConfig = false;
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                Serial.println("-----------------------------------------------------");
-                Serial.println("Received ACK - end of sensor config!!");
-#endif
-            }
-            else if (message & 0b10000000)
-            {
-                // Found info message
-                byte modeNumber = message & 0b111;
-                EV3SensorInfo info = _config.infos[modeNumber];
-                if (!this->parseInfoMessage(message, &info))
-                {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                    Serial.println("Failed to parse sensor mode -> restart!");
-#endif
-                    xSemaphoreGive(_serialMutex);
-                    return this->begin(retries - 1);
-                }
-            }
-        }
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.print("Switching UART baudrate to ");
-        Serial.println(this->_config.speed);
-#endif
-        this->_baudrateSetter(this->_config.speed);
-        xSemaphoreGive(_serialMutex);
-
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Starting background communication task");
-#endif
-        xTaskCreate(
-            &sensorCommThreadHelper,
-            "EV3_SEN_P",
-            60000,
-            this,
-            1,
-            &_sensorCommThreadHandle // Task handle
-        );
-
-        return true;
-    }
+    bool begin(int retries = 9);
 };

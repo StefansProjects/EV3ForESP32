@@ -63,8 +63,6 @@ private:
 
     // Prevent simultanious access quadrature encoder
     SemaphoreHandle_t _serialMutex;
-    // Handle for the motor control task.
-    TaskHandle_t _sensorCommThreadHandle = nullptr;
 
     /**
      * Calculates the checksum
@@ -75,18 +73,6 @@ private:
      * Makes a string from a sensor payload. Since the payload is padded with zeros, the method tries first to determine the true size of the string.
      */
     char *makeStringFromPayload(uint8_t data[], int maxlength);
-    /*
-     * Utility method to bind a class method to a FreeRTOS task.
-     * 
-     * @see https://www.freertos.org/FreeRTOS_Support_Forum_Archive/July_2010/freertos_Is_it_possible_create_freertos_task_in_c_3778071.html
-     * @see https://forum.arduino.cc/index.php?topic=674975.0
-     * 
-     * @param parm Reference to the actual EV3SensorPort object to handle.
-     */
-    static void sensorCommThreadHelper(void *parm)
-    {
-        static_cast<EV3SensorPort *>(parm)->sensorCommThread();
-    }
 
     void sensorCommThread();
 
@@ -167,5 +153,5 @@ public:
     /**
      * Starts the EV3 Sensor communication protocol.
      */
-    bool begin(int retries = 9);
+    bool begin(std::function<void(EV3SensorPort *)> onSuccess, int retries = 9);
 };

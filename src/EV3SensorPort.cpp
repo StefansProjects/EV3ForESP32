@@ -383,14 +383,9 @@ void EV3SensorPort::selectSensorMode(uint8_t mode)
 
 void EV3SensorPort::stop()
 {
-    if (_sensorCommThreadHandle)
-    {
-        vTaskDelete(_sensorCommThreadHandle);
-        _sensorCommThreadHandle = nullptr;
-    }
 }
 
-bool EV3SensorPort::begin(int retries)
+bool EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
 {
     stop();
     byte message = 0;
@@ -416,7 +411,7 @@ bool EV3SensorPort::begin(int retries)
                 Serial.println("Failed to parse mode count -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
-                return this->begin(retries - 1);
+                return this->begin(onSuccess, retries - 1);
             }
             _config.infos = new EV3SensorInfo[_config.modes];
         }
@@ -428,7 +423,7 @@ bool EV3SensorPort::begin(int retries)
                 Serial.println("Failed to parse sensor uart speed -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
-                return this->begin(retries - 1);
+                return this->begin(onSuccess, retries - 1);
             }
         }
         else if (message == ACK)
@@ -450,7 +445,7 @@ bool EV3SensorPort::begin(int retries)
                 Serial.println("Failed to parse sensor mode -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
-                return this->begin(retries - 1);
+                return this->begin(onSuccess, retries - 1);
             }
         }
     }
@@ -460,18 +455,9 @@ bool EV3SensorPort::begin(int retries)
 #endif
     this->_baudrateSetter(this->_config.speed);
     xSemaphoreGive(_serialMutex);
+    onSuccess(this);
 
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.println("Starting background communication task");
-#endif
-    xTaskCreate(
-        &sensorCommThreadHelper,
-        "EV3_SEN_P",
-        60000,
-        this,
-        1,
-        &_sensorCommThreadHandle // Task handle
-    );
+    this->sensorCommThread();
 
     return true;
 }
@@ -480,9 +466,6 @@ void EV3SensorPort::sensorCommThread()
 {
     for (;;)
     {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Sending nack");
-#endif
         //xSemaphoreTake(_serialMutex, portMAX_DELAY);
         _connection->write(NACK);
         vTaskDelay(90 / portTICK_PERIOD_MS);

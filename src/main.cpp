@@ -67,7 +67,11 @@ void setup()
   digitalWrite(OE_levelshifter, HIGH);
 
   delay(1000);
-  sensor.begin(3);
+  sensor.begin([](EV3SensorPort *p) {
+    Serial.print("Found sensor of type ");
+    Serial.println(p->getCurrentConfig()->type, HEX);
+  },
+               3);
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;

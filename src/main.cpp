@@ -7,6 +7,7 @@
 #include "RegulatedMotor.h"
 #include "SoftwareSerial.h"
 #include "EV3SensorPort.h"
+#include "EV3ColorSensor.h"
 
 const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
@@ -20,6 +21,7 @@ const int OE_levelshifter = 23;
 // SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
 
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
+EV3ColorSensor col1(&sensor);
 TaskHandle_t sensorHandle;
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
@@ -45,15 +47,22 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
   }
 }
 
+EV3ColorSensorColor curr = EV3ColorSensorColor::NONE;
+
 void setupSensor1(void *param)
 {
   sensor.begin([](EV3SensorPort *p) {
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
-    p->selectSensorMode(2);
-    p->setMessageHandler([](uint8_t mode, uint8_t *message, int len) {
-      Serial.print("Color ");
-      Serial.println(message[0]);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    col1.setMode(EV3ColorSensorMode::COL_COLOR);
+    col1.setOnColColor([](EV3ColorSensorColor col) {
+      if (col != curr)
+      {
+        curr = col;
+        writeEV3ColorSensorColorToStream(col, &Serial);
+        Serial.println("");
+      }
     });
   });
 }

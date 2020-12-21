@@ -49,7 +49,7 @@ byte EV3SensorPort::readNextAvailableByte()
     return message;
 }
 
-bool EV3SensorPort::parseSpeed(byte header, SensorConfig *config)
+bool EV3SensorPort::parseSpeed(byte header, EV3SensorConfig *config)
 {
     _buffer[0] = header;
 
@@ -79,7 +79,7 @@ bool EV3SensorPort::parseSpeed(byte header, SensorConfig *config)
     }
 }
 
-bool EV3SensorPort::parseModeCount(byte header, SensorConfig *config)
+bool EV3SensorPort::parseModeCount(byte header, EV3SensorConfig *config)
 {
     _buffer[0] = header;
     _connection->readBytes(_buffer + 1, 3);
@@ -112,7 +112,7 @@ bool EV3SensorPort::parseModeCount(byte header, SensorConfig *config)
     }
 }
 
-bool EV3SensorPort::parseType(byte message, SensorConfig *config)
+bool EV3SensorPort::parseType(byte message, EV3SensorConfig *config)
 {
     _buffer[0] = message;
 
@@ -269,7 +269,7 @@ bool EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
     if (calculateChecksum(_buffer, 6) == _buffer[6])
     {
         info->numberOfItems = _buffer[2];
-        info->dataTypeOfItem = _buffer[3];
+        info->dataTypeOfItem = static_cast<EV3Datatype>(_buffer[3]);
         info->numberOfDigits = _buffer[4];
         info->numberOfDecimals = _buffer[5];
         info->mode = _buffer[0] & 0b111;
@@ -278,7 +278,7 @@ bool EV3SensorPort::parseFormatMessage(byte *header, EV3SensorInfo *info)
         Serial.print("Number of items per message ");
         Serial.print(info->numberOfItems);
         Serial.print(" with type ");
-        Serial.print(info->dataTypeOfItem);
+        Serial.print(static_cast<uint8_t>(info->dataTypeOfItem));
         Serial.print(" with digits ");
         Serial.print(info->numberOfDigits);
         Serial.print(" with decimals ");
@@ -373,10 +373,14 @@ bool EV3SensorPort::parseModeRangeMessage(byte *header, EV3SensorInfo *info)
 
 void EV3SensorPort::selectSensorMode(uint8_t mode)
 {
+#ifdef EV3SENSOR_SERIAL_DEBUG
+    Serial.print("Setting sensor to mode ");
+    Serial.println(mode);
+#endif
     xSemaphoreTake(_serialMutex, portMAX_DELAY);
     _buffer[0] = SELECT;
     _buffer[1] = mode;
-    _buffer[3] = this->calculateChecksum(_buffer, 2);
+    _buffer[2] = this->calculateChecksum(_buffer, 2);
     _connection->write(_buffer, 3);
     _connection->flush();
     xSemaphoreGive(_serialMutex);
@@ -468,6 +472,25 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
     this->sensorCommThread();
 }
 
+/**
+ * Utility method to get get EV3SensorInfo for a mode
+ */
+EV3SensorInfo *EV3SensorPort::getInfoForMode(uint8_t mode)
+{
+    if (getCurrentConfig())
+    {
+        auto config = getCurrentConfig();
+        for (int i = 0; i < config->modes; i++)
+        {
+            if (config->infos[i].mode == mode)
+            {
+                return &config->infos[i];
+            }
+        }
+    }
+    return nullptr;
+}
+
 void EV3SensorPort::sensorCommThread()
 {
     for (;;)
@@ -487,12 +510,6 @@ void EV3SensorPort::sensorCommThread()
                     if (this->_onMessage)
                     {
                         _onMessage(mode, _buffer + 1, msgLenght);
-                    }
-                    else
-                    {
-#ifdef EV3SENSOR_SERIAL_DEBUG
-                        Serial.println("No message handler defined.");
-#endif
                     }
                 }
                 else

@@ -5,7 +5,7 @@
 #include "PowerFunctions.h"
 #include <Wire.h>
 #include <ESP32Encoder.h>
-#include "RegulatedMotor.h"
+#include "EV3RegulatedMotor.h"
 #include "SoftwareSerial.h"
 #include "EV3SensorPort.h"
 #include "EV3ColorSensor.h"
@@ -17,16 +17,15 @@ const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
 const int tacho1Pin1 = 18;
 const int tacho1Pin2 = 19;
-const int OE_levelshifter = 23;
 // create a hub instance
 // Lpf2HubEmulation myEmulatedHub("TrainHub", HubType::POWERED_UP_HUB);
 
-// RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
+EV3RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
 // SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
 
-EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
-EV3IRSensor ir1(&sensor);
-TaskHandle_t sensorHandle;
+// EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
+// EV3IRSensor ir1(&sensor);
+// TaskHandle_t sensorHandle;
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
@@ -53,6 +52,7 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
 
 uint8_t current_distance = 0;
 
+/*
 void setupSensor1(void *param)
 {
   sensor.begin([](EV3SensorPort *p) {
@@ -80,6 +80,7 @@ void setupSensor1(void *param)
     });
   });
 }
+*/
 
 void setup()
 {
@@ -88,16 +89,11 @@ void setup()
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
 
-  // OE enable of level shifter
-  pinMode(OE_levelshifter, OUTPUT);
-
   // Set motors to coast mode
   digitalWrite(motor1Pin1, LOW);
   digitalWrite(motor1Pin2, LOW);
 
-  Serial1.begin(2400, SERIAL_8N1, tacho1Pin2, tacho1Pin1);
-
-  // motor.start();
+  motor.start();
   // swSerial.begin(2400);
 
   Serial.begin(115200);
@@ -105,19 +101,6 @@ void setup()
   Serial.println("\nInitalize virtual hub");
   //myEmulatedHub.setWritePortCallback(&writeValueCallback);
   //myEmulatedHub.start();
-
-  digitalWrite(OE_levelshifter, HIGH);
-
-  xTaskCreate(
-      &setupSensor1,
-      "S1",
-      50000,
-      nullptr,
-      1,
-      &sensorHandle // Task handle
-  );
-
-  // setupSensor1(nullptr);
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;
@@ -142,7 +125,6 @@ void loop()
   }
   */
 
-  /*
   if (console_delay == 10)
   {
     Serial.print("Position ");
@@ -196,9 +178,8 @@ void loop()
     Serial.print("Pos ");
     Serial.println(String((int32_t)pos));
 
-    motor.set(RegulationType::POSITION, pos, Kp, Ki, Kd);
+    motor.set(EV3RegulationType::POSITION, pos, Kp, Ki, Kd);
   }
-  */
 
   delay(50);
 }

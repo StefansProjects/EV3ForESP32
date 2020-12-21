@@ -15,7 +15,7 @@ Further hardware is required to drive motors and retrieve data from sensors. It 
 
 The level shifter to convert both quadrature encoder signals and uart communiction between 5V and 3V3 is a simple circuit using a mosfet (for prototypes you can use a 2N7000A) and two resistor per line.
 
-![Sensor connection scheme][https://github.com/StefansProjects/EV3ForESP32/raw/master/doc/sensor_connection.png]
+![Sensor connection scheme][https://raw.githubusercontent.com/StefansProjects/EV3ForESP32/main/doc/sensor_connection.png]
 
 To drive the motors, I use a `DRV8833 Dual H-Bridge Motor Driver` (you can find simple boards for prototyping on the usual platforms). Its limits for both voltage and current are close to the ones for the EV3 motors, so its a perfect fit to drive two EV3 motors. But you can use any other motor driver.
 

@@ -54,6 +54,7 @@ public:
 
     /**
      * Sets the handler for IR_REMOTE mode data packets.
+     * The handler gets the IR remote channel and the state of the red and blue button.
      */
     void setOnIRRemote(std::function<void(uint8_t, EV3RemoteState, EV3RemoteState)> handler)
     {

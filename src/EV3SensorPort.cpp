@@ -388,6 +388,7 @@ void EV3SensorPort::stop()
 bool EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
 {
     stop();
+    this->_baudrateSetter(2400);
     byte message = 0;
     xSemaphoreTake(_serialMutex, portMAX_DELAY);
     // First wait for the first TYPE message. Its always the first message!!!!

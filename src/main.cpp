@@ -17,7 +17,9 @@ const int OE_levelshifter = 23;
 // Lpf2HubEmulation myEmulatedHub("TrainHub", HubType::POWERED_UP_HUB);
 
 // RegulatedMotor motor(motor1Pin1, motor1Pin2, tacho1Pin1, tacho1Pin2);
-SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
+// SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
+
+EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
 {
@@ -42,6 +44,14 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
   }
 }
 
+void setupSensor1()
+{
+  sensor.begin([](EV3SensorPort *p) {
+    Serial.print("Found sensor of type ");
+    Serial.println(p->getCurrentConfig()->type, HEX);
+  });
+}
+
 void setup()
 {
   pinMode(motor1Pin1, OUTPUT);
@@ -54,9 +64,10 @@ void setup()
   digitalWrite(motor1Pin1, LOW);
   digitalWrite(motor1Pin2, LOW);
 
-  EV3SensorPort sensor(&swSerial, [](int v) { swSerial.begin(v); });
+  Serial1.begin(2400, SERIAL_8N1, tacho1Pin2, tacho1Pin1);
+
   // motor.start();
-  swSerial.begin(2400);
+  // swSerial.begin(2400);
 
   Serial.begin(115200);
   // define the callback function if a write message event on the characteristic occurs
@@ -66,12 +77,16 @@ void setup()
 
   digitalWrite(OE_levelshifter, HIGH);
 
-  delay(1000);
-  sensor.begin([](EV3SensorPort *p) {
-    Serial.print("Found sensor of type ");
-    Serial.println(p->getCurrentConfig()->type, HEX);
-  },
-               3);
+  /*xTaskCreate(
+      &setupSensor1,
+      "Controlling motor",
+      10000,
+      this,
+      1,
+      &_motorCtrlHandle // Task handle
+  );*/
+
+  setupSensor1();
 }
 
 double Kp = 0, Ki = 0.0, Kd = 0;

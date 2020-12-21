@@ -50,6 +50,11 @@ void setupSensor1(void *param)
   sensor.begin([](EV3SensorPort *p) {
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
+    p->selectSensorMode(2);
+    p->setMessageHandler([](uint8_t mode, uint8_t *message, int len) {
+      Serial.print("Color ");
+      Serial.println(message[0]);
+    });
   });
 }
 

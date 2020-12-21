@@ -472,6 +472,41 @@ void EV3SensorPort::sensorCommThread()
 {
     for (;;)
     {
+        if (_connection->available() > 0)
+        {
+            uint8_t message = _connection->read();
+            if (message & 0b11000000)
+            {
+                uint8_t mode = message & 0b111;
+                uint8_t msgLenght = 1 << ((message & 0b00111000) >> 3); // 2^LLL;
+
+                _buffer[0] = message;
+                _connection->readBytes(_buffer + 1, msgLenght + 1);
+                if (calculateChecksum(_buffer, msgLenght + 1) == _buffer[msgLenght + 1])
+                {
+                    if (this->_onMessage)
+                    {
+                        _onMessage(mode, _buffer + 1, msgLenght);
+                    }
+                    else
+                    {
+#ifdef EV3SENSOR_SERIAL_DEBUG
+                        Serial.println("No message handler defined.");
+#endif
+                    }
+                }
+                else
+                {
+#ifdef EV3SENSOR_SERIAL_DEBUG
+                    Serial.print("Got data message from sensor for mode ");
+                    Serial.print(mode);
+                    Serial.print(" with length ");
+                    Serial.print(msgLenght);
+                    Serial.println(" but with wrong checksum :/.");
+#endif
+                }
+            }
+        }
 
         xSemaphoreTake(_serialMutex, portMAX_DELAY);
         _connection->write(NACK);

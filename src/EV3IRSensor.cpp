@@ -24,6 +24,7 @@ void EV3IRSensor::handleIRRemote(uint8_t *message, int length)
 
         if (value != 0)
         {
+            Serial.println("Value received");
             ESP_LOGD(TAG, "EV3 IR Remote message %d on channel %d (msg length %d)", value, i, length);
         }
         switch (value)

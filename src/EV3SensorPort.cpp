@@ -547,6 +547,7 @@ void EV3SensorPort::sensorCommThread()
 {
     for (;;)
     {
+        xSemaphoreTake(_serialMutex, portMAX_DELAY);
         if (_connection->available() > 0)
         {
             // Clear buffer
@@ -578,10 +579,17 @@ void EV3SensorPort::sensorCommThread()
                 }
             }
         }
-
-        xSemaphoreTake(_serialMutex, portMAX_DELAY);
-        _connection->write(NACK);
         xSemaphoreGive(_serialMutex);
-        vTaskDelay(90 / portTICK_PERIOD_MS);
+
+        auto current_timestamp = millis();
+        auto delta_time = current_timestamp - this->lastNACKSended;
+        if (delta_time > 90)
+        {
+            xSemaphoreTake(_serialMutex, portMAX_DELAY);
+            _connection->write(NACK);
+            xSemaphoreGive(_serialMutex);
+            this->lastNACKSended = current_timestamp;
+        }
+        vTaskDelay(1);
     }
 }

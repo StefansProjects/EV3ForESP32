@@ -67,7 +67,10 @@ private:
 
     std::function<void(uint8_t, uint8_t *, int length)> _onMessage;
 
-    unsigned long _prevTimestamp = 0;
+    /**
+     * Timestamp of the last NACK sended to sensor.
+     */
+    unsigned long lastNACKSended = 0;
 
     /**
      * Use one single buffer for all communication to avoid heap fragrmentation.

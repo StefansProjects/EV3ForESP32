@@ -55,15 +55,6 @@ void setupSensor1(void *param)
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
     vTaskDelay(50 / portTICK_PERIOD_MS);
-    col1.setMode(EV3ColorSensorMode::COL_COLOR);
-    col1.setOnColColor([](EV3ColorSensorColor col) {
-      if (col != curr)
-      {
-        curr = col;
-        writeEV3ColorSensorColorToStream(col, &Serial);
-        Serial.println("");
-      }
-    });
   });
 }
 

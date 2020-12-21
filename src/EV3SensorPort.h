@@ -85,6 +85,8 @@ private:
     const static uint8_t TYPE_COLOR_SENSOR = 29;
     const static uint8_t TYPE_IR_SENSOR = 33;
 
+    const static TickType_t TIME_BEFORE_RESTART = 200 / portTICK_PERIOD_MS;
+
     // Prevent simultanious access quadrature encoder
     SemaphoreHandle_t _serialMutex;
 
@@ -99,6 +101,11 @@ private:
     char *makeStringFromPayload(uint8_t data[], int maxlength);
 
     void sensorCommThread();
+
+    /**
+ * Utility method for dev purposes to analyze unkown info messages.
+ */
+    bool parseUnknownMessage(byte *header);
 
     /**
      * Determines wheter the next message is a info message. If yes trie parse it and return the mode number.

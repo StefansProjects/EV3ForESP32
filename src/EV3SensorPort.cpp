@@ -185,11 +185,63 @@ bool EV3SensorPort::parseInfoMessage(byte message, EV3SensorInfo *info)
         return parseSymbolNameMessage(_buffer, info);
         break;
     default:
+        return parseUnknownMessage(_buffer);
+        /*
 #ifdef EV3SENSOR_SERIAL_DEBUG
-        Serial.println("Unsupported message type !!");
+        Serial.print("Unsupported message type !!");
 #endif
         return false;
+        */
     }
+}
+
+bool EV3SensorPort::parseUnknownMessage(byte *header)
+{
+    _buffer[0] = header[0];
+    _buffer[1] = header[1];
+
+    // Read bytes until the checksum fits
+    uint8_t msgLenght = 1 << ((header[0] & 0b00111000) >> 3); // 2^LLL;
+    uint8_t mode = _buffer[0] & 0b111;
+    uint8_t msglength = 2;
+    uint8_t checksum = 0;
+
+    for (;;)
+    {
+        checksum = _buffer[msglength - 1];
+        if (calculateChecksum(_buffer, msglength - 1) == checksum)
+        {
+// Message found !!!
+#ifdef EV3SENSOR_SERIAL_DEBUG
+            Serial.print(" Unknown message ");
+            Serial.print(_buffer[0]);
+            Serial.print(" for sensor mode ");
+            Serial.print(_buffer[1]);
+            Serial.print(" (mode = ");
+            Serial.print(mode);
+            Serial.print(" length = ");
+            Serial.print(msgLenght);
+            Serial.print(") of overall size ");
+            Serial.print(msglength);
+            Serial.print(" and content ");
+            for (int i = 2; i < msglength; i++)
+            {
+                Serial.print(_buffer[i], HEX);
+                Serial.print(" ");
+            }
+            Serial.println("");
+
+#endif
+            break;
+        }
+        else
+        {
+            // fetch next byte
+            _connection->readBytes(_buffer + msglength, 1);
+            msglength++;
+        }
+    }
+    return true;
 }
 
 bool EV3SensorPort::parseSymbolNameMessage(byte *header, EV3SensorInfo *info)
@@ -417,6 +469,8 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 Serial.println("Failed to parse mode count -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
+
+                vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
             }
             _config.infos = new EV3SensorInfo[_config.modes];
@@ -429,6 +483,7 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 Serial.println("Failed to parse sensor uart speed -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
+                vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
             }
         }
@@ -451,6 +506,7 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 Serial.println("Failed to parse sensor mode -> restart!");
 #endif
                 xSemaphoreGive(_serialMutex);
+                vTaskDelay(TIME_BEFORE_RESTART);
                 return this->begin(onSuccess, retries - 1);
             }
         }

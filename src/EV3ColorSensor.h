@@ -21,36 +21,8 @@ enum struct EV3ColorSensorColor : uint8_t
 /**
  * Utility method to create a humand readable string of a color.
  */
-void writeEV3ColorSensorColorToStream(EV3ColorSensorColor col, Stream *stream)
-{
-    switch (col)
-    {
-    case EV3ColorSensorColor::NONE:
-        stream->print("none");
-        break;
-    case EV3ColorSensorColor::BLACK:
-        stream->print("black");
-        break;
-    case EV3ColorSensorColor::BLUE:
-        stream->print("blue");
-        break;
-    case EV3ColorSensorColor::GREEN:
-        stream->print("green");
-        break;
-    case EV3ColorSensorColor::YELLOW:
-        stream->print("yellow");
-        break;
-    case EV3ColorSensorColor::RED:
-        stream->print("red");
-        break;
-    case EV3ColorSensorColor::WHITE:
-        stream->print("white");
-        break;
-    case EV3ColorSensorColor::BROWN:
-        stream->print("brown");
-        break;
-    }
-}
+void writeEV3ColorSensorColorToStream(EV3ColorSensorColor col, Stream *stream);
+
 /**
  *  Available modes of the EV3 color sensor.
  */

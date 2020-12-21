@@ -45,6 +45,10 @@ private:
 
     std::function<void(int)> _baudrateSetter;
 
+    std::function<void(uint8_t, uint8_t *, int length)> _onMessage;
+
+    unsigned long _prevTimestamp = 0;
+
     /**
      * Use one single buffer for all communication to avoid heap fragrmentation.
      */
@@ -138,6 +142,14 @@ public:
     SensorConfig *getCurrentConfig()
     {
         return &_config;
+    }
+
+    /**
+     * Sets the message handler
+     */
+    void setMessageHandler(std::function<void(uint8_t, uint8_t *, int length)> onMessage)
+    {
+        this->_onMessage = onMessage;
     }
 
     /**

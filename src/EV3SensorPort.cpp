@@ -377,7 +377,8 @@ void EV3SensorPort::selectSensorMode(uint8_t mode)
     _buffer[0] = SELECT;
     _buffer[1] = mode;
     _buffer[3] = this->calculateChecksum(_buffer, 2);
-    this->_connection->write(_buffer, 3);
+    _connection->write(_buffer, 3);
+    _connection->flush();
     xSemaphoreGive(_serialMutex);
 }
 
@@ -451,6 +452,12 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
         }
     }
 #ifdef EV3SENSOR_SERIAL_DEBUG
+    Serial.println("Reply with ACK ");
+#endif
+    _connection->write(ACK);
+    _connection->flush();
+
+#ifdef EV3SENSOR_SERIAL_DEBUG
     Serial.print("Switching UART baudrate to ");
     Serial.println(this->_config.speed);
 #endif
@@ -465,6 +472,7 @@ void EV3SensorPort::sensorCommThread()
 {
     for (;;)
     {
+
         xSemaphoreTake(_serialMutex, portMAX_DELAY);
         _connection->write(NACK);
         xSemaphoreGive(_serialMutex);

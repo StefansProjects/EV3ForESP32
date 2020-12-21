@@ -147,16 +147,6 @@ float EV3SensorPort::makeFloatFromPayload(uint8_t data[])
 {
     uint32_t flt = (float)(data[3] << 24) + (data[2] << 16) + (data[1] << 8) + (data[0] << 0);
     float result = *reinterpret_cast<float *>(&flt);
-#ifdef EV3SENSOR_SERIAL_DEBUG
-    Serial.print("  Made float ");
-    Serial.print(result);
-    Serial.print(" of values ");
-    for (int i = 0; i < 4; i++)
-    {
-        Serial.print(data[i], HEX);
-        Serial.print(" ");
-    }
-#endif
     return result;
 }
 

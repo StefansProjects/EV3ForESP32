@@ -76,29 +76,10 @@ private:
     std::function<void(byte)> onColAmbient;
     std::function<void(EV3ColorSensorColor)> onColColor;
 
-    void messageHandler(uint8_t mode, uint8_t *message, int length)
-    {
-        switch (mode)
-        {
-        case 0:
-            if (onColReflect)
-                onColReflect(message[0]);
-            break;
-        case 1:
-            if (onColAmbient)
-                onColAmbient(message[0]);
-            break;
-        case 2:
-            if (onColColor)
-                onColColor(static_cast<EV3ColorSensorColor>(message[0]));
-            break;
-        default:
-#ifdef EV3SENSOR_SERIAL_DEBUG
-            Serial.print("Currently not supported EV3 color sensor mode ");
-            Serial.println(mode);
-#endif
-        }
-    }
+    /**
+     * Handler for single messages from the EV3 sensor port
+     */
+    void messageHandler(uint8_t mode, uint8_t *message, int length);
 
 public:
     EV3ColorSensor(EV3SensorPort *port) : _port(port)
@@ -106,21 +87,33 @@ public:
         _port->setMessageHandler([this](uint8_t mode, uint8_t *message, int length) { this->messageHandler(mode, message, length); });
     }
 
+    /**
+     * Set the mode of the color sensor
+     */
     void setMode(EV3ColorSensorMode mode)
     {
         _port->selectSensorMode(static_cast<uint8_t>(mode));
     }
 
+    /**
+     * Set the handler for COL_REFLECT messages
+     */
     void setOnColReflect(std::function<void(byte)> h)
     {
         this->onColReflect = h;
     }
 
+    /**
+     * Set the handler for COL_AMBIENT messages
+     */
     void setOnColAmbient(std::function<void(byte)> h)
     {
         this->onColAmbient = h;
     }
 
+    /**
+     * Set the handler for COL_COLOR messages
+     */
     void setOnColColor(std::function<void(EV3ColorSensorColor)> h)
     {
         this->onColColor = h;

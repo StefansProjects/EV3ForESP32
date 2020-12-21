@@ -45,6 +45,11 @@ private:
 
     std::function<void(int)> _baudrateSetter;
 
+    /**
+     * Use one single buffer for all communication to avoid heap fragrmentation.
+     */
+    uint8_t _buffer[1 + 32 + 1];
+
     const static uint8_t SYNC = 0b00000000;
     const static uint8_t NACK = 0b00000010;
     const static uint8_t ACK = 0b00000100;

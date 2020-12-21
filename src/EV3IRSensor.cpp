@@ -1,4 +1,3 @@
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 #include "EV3IRSensor.h"
 

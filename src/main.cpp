@@ -8,6 +8,7 @@
 #include "SoftwareSerial.h"
 #include "EV3SensorPort.h"
 #include "EV3ColorSensor.h"
+#include "EV3IRSensor.h"
 
 const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
@@ -21,7 +22,7 @@ const int OE_levelshifter = 23;
 // SoftwareSerial swSerial(tacho1Pin2, tacho1Pin1);
 
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
-EV3ColorSensor col1(&sensor);
+EV3IRSensor ir1(&sensor);
 TaskHandle_t sensorHandle;
 
 void writeValueCallback(byte port, byte subcommand, std::string value)
@@ -55,25 +56,23 @@ void setupSensor1(void *param)
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
     vTaskDelay(50 / portTICK_PERIOD_MS);
-    p->selectSensorMode(0); // IR_PROX
-    p->setMessageHandler([](uint8_t mode, uint8_t *msg, int length) {
-      if (mode == 0)
+    ir1.setMode(EV3IRSensorMode::IR_REMOTE);
+    ir1.setOnIRRemote([](uint8_t chan, EV3RemoteState r, EV3RemoteState b) {
+      if (r != EV3RemoteState::NONE || b != EV3RemoteState::NONE)
       {
-        uint8_t distance = msg[0];
-        if (distance != current_distance)
+        Serial.print("Channel ");
+        Serial.print(chan);
+        if (r != EV3RemoteState::NONE)
         {
-          Serial.print("Distance ");
-          Serial.print(distance);
-          Serial.print("% = ");
-          Serial.print((70 * distance) / 100);
-          Serial.println(" cm");
-          current_distance = distance;
+          Serial.print(" RED ");
+          Serial.print(r == EV3RemoteState::DOWN ? "DOWN" : "UP");
         }
-      }
-      else
-      {
-        Serial.print("Unexpected mode ");
-        Serial.println(mode);
+        if (b != EV3RemoteState::NONE)
+        {
+          Serial.print(" BLUE ");
+          Serial.print(b == EV3RemoteState::DOWN ? "DOWN" : "UP");
+        }
+        Serial.println("");
       }
     });
   });
@@ -81,6 +80,8 @@ void setupSensor1(void *param)
 
 void setup()
 {
+  esp_log_level_set("*", ESP_LOG_DEBUG);
+  ESP_LOGD("main", "Hello world!!");
   pinMode(motor1Pin1, OUTPUT);
   pinMode(motor1Pin2, OUTPUT);
 

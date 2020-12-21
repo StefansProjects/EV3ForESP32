@@ -453,6 +453,8 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
     bool waitingForConfig = true;
     while (waitingForConfig)
     {
+        // Clear buffer
+        std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
         message = this->readNextAvailableByte();
         if (message == MODES)
         {
@@ -546,6 +548,8 @@ void EV3SensorPort::sensorCommThread()
     {
         if (_connection->available() > 0)
         {
+            // Clear buffer
+            std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
             uint8_t message = _connection->read();
             if (message & 0b11000000)
             {

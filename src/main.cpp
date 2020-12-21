@@ -47,7 +47,7 @@ void writeValueCallback(byte port, byte subcommand, std::string value)
   }
 }
 
-EV3ColorSensorColor curr = EV3ColorSensorColor::NONE;
+uint8_t current_distance = 0;
 
 void setupSensor1(void *param)
 {
@@ -55,6 +55,27 @@ void setupSensor1(void *param)
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
     vTaskDelay(50 / portTICK_PERIOD_MS);
+    p->selectSensorMode(0); // IR_PROX
+    p->setMessageHandler([](uint8_t mode, uint8_t *msg, int length) {
+      if (mode == 0)
+      {
+        uint8_t distance = msg[0];
+        if (distance != current_distance)
+        {
+          Serial.print("Distance ");
+          Serial.print(distance);
+          Serial.print("% = ");
+          Serial.print((70 * distance) / 100);
+          Serial.println(" cm");
+          current_distance = distance;
+        }
+      }
+      else
+      {
+        Serial.print("Unexpected mode ");
+        Serial.println(mode);
+      }
+    });
   });
 }
 

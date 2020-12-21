@@ -72,7 +72,8 @@ private:
     /**
      * Use one single buffer for all communication to avoid heap fragrmentation.
      */
-    uint8_t _buffer[1 + 32 + 1];
+    constexpr static size_t BUFFER_SIZE = 1 + 32 + 1;
+    uint8_t _buffer[BUFFER_SIZE];
 
     const static uint8_t SYNC = 0b00000000;
     const static uint8_t NACK = 0b00000010;

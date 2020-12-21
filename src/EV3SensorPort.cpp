@@ -12,22 +12,15 @@ uint8_t EV3SensorPort::calculateChecksum(uint8_t data[], int length)
 
 char *EV3SensorPort::makeStringFromPayload(uint8_t data[], int maxlength)
 {
-    // Check actual name length
-    int actualLenght = maxlength;
-    for (int i = 0; i < maxlength; i++)
-    {
-        if ((data[i]) == 0)
-        {
-            actualLenght = i + 1;
-            break;
-        }
-    }
-    char *result = new char[actualLenght];
 
-    for (int i = 0; i < actualLenght; i++)
+    int actualLength = strlen((char *)data) + 1; // +1 for null termination;
+    char *result = new char[actualLength];
+
+    for (int i = 0; i < actualLength; i++)
     {
         result[i] = data[i];
     }
+    result[actualLength - 1] = 0;
 
     return result;
 }

@@ -304,14 +304,23 @@ void EV3SensorPort::selectSensorMode(uint8_t mode)
 void EV3SensorPort::stop()
 {
     ESP_LOGD(TAG, "Stopping sensor");
+    if (_sensorHandle)
+    {
+        vTaskDelete(_sensorHandle);
+        _sensorHandle = nullptr;
+    }
 }
 
-void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
+void EV3SensorPort::sensorInitHelper(void *parm)
 {
-    stop();
-    this->_baudrateSetter(2400);
+    static_cast<EV3SensorPort *>(parm)->sensorInit();
+}
+
+void EV3SensorPort::sensorInit()
+{
     byte message = 0;
     xSemaphoreTake(_serialMutex, portMAX_DELAY);
+    this->_baudrateSetter(2400);
     ESP_LOGV(TAG, "Waiting from the first TYPE message from the EV3 sensor. %d retries left", retries);
     // First wait for the first TYPE message. Its always the first message!!!!
     while (message != TYPE)
@@ -335,7 +344,9 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 ESP_LOGE(TAG, "Failed to parse mode count -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
                 vTaskDelay(TIME_BEFORE_RESTART);
-                return this->begin(onSuccess, retries - 1);
+                retries--;
+                this->sensorInit();
+                return;
             }
             _config.infos = new EV3SensorInfo[_config.modes];
         }
@@ -346,7 +357,9 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 ESP_LOGE(TAG, "Failed to parse sensor uart speed -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
                 vTaskDelay(TIME_BEFORE_RESTART);
-                return this->begin(onSuccess, retries - 1);
+                retries--;
+                this->sensorInit();
+                return;
             }
         }
         else if (message == ACK)
@@ -365,7 +378,9 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
                 ESP_LOGE(TAG, "Failed to parse sensor info message -> restart (%d retries left)", retries - 1);
                 xSemaphoreGive(_serialMutex);
                 vTaskDelay(TIME_BEFORE_RESTART);
-                return this->begin(onSuccess, retries - 1);
+                retries--;
+                this->sensorInit();
+                return;
             }
         }
     }
@@ -377,10 +392,26 @@ void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int re
     ESP_LOGV(TAG, "Set new UART speed to %d baud", this->_config.speed);
     this->_baudrateSetter(this->_config.speed);
     xSemaphoreGive(_serialMutex);
-    onSuccess(this);
+    _onSuccess(this);
 
     ESP_LOGV(TAG, "Initalization phase finished - switching to communication phase");
     this->sensorCommThread();
+}
+
+void EV3SensorPort::begin(std::function<void(EV3SensorPort *)> onSuccess, int retries)
+{
+    stop();
+    this->_onSuccess = onSuccess;
+    this->retries = retries;
+
+    xTaskCreate(
+        &sensorInitHelper,
+        "EV3Sensor",
+        50000,
+        this,
+        1,
+        &_sensorHandle // Task handle
+    );
 }
 
 /**

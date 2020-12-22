@@ -66,6 +66,28 @@ private:
     std::function<void(uint8_t, uint8_t *, int length)> _onMessage;
 
     /**
+     *  Callback called after sucessful connection with the sensor
+     */
+    std::function<void(EV3SensorPort *)> _onSuccess;
+
+    /**
+     * Number of retries left to connect to sensor.
+     */
+    int retries = 9;
+
+    TaskHandle_t _sensorHandle;
+
+    /*
+     * Utility method to bind a class method to a FreeRTOS task.
+     * 
+     * @see https://www.freertos.org/FreeRTOS_Support_Forum_Archive/July_2010/freertos_Is_it_possible_create_freertos_task_in_c_3778071.html
+     * @see https://forum.arduino.cc/index.php?topic=674975.0
+     * 
+     * @param parm Reference to the actual EV3SensorPort object to handle.
+     */
+    static void sensorInitHelper(void *parm);
+
+    /**
      * Timestamp of the last NACK sended to sensor.
      */
     unsigned long lastNACKSended = 0;
@@ -105,8 +127,8 @@ private:
     void sensorCommThread();
 
     /**
- * Utility method for dev purposes to analyze unkown info messages.
- */
+     * Utility method for dev purposes to analyze unkown info messages.
+     */
     bool parseUnknownMessage(byte *header);
 
     /**
@@ -155,6 +177,11 @@ private:
      */
     byte readNextAvailableByte();
 
+    /**
+     * Performs the acutal initalization process of the sensor.
+     */
+    void sensorInit();
+
 public:
     EV3SensorPort(Stream *connection, std::function<void(int)> baudrateSetter) : _connection(connection), _baudrateSetter(baudrateSetter)
     {
@@ -178,7 +205,7 @@ public:
     }
 
     /**
-     *  Stops the EV3 Sensor.   
+     *  Stops the EV3 Sensor communication and the corresponding task.
      */
     void stop();
 
@@ -200,7 +227,7 @@ public:
     /**
      * Starts the EV3 sensor communication protocol.
      * First reads the sensor configuration and calls the onSuccess callback afterwards. Then keeps the connection online by sending the sensor NACK regularly.
-     * Best start this method in its own FREERTOS thread.
+     * The method performs all commuincation in its own FreeRTOS task, there it returns immediately.
      */
     void begin(std::function<void(EV3SensorPort *)> onSuccess, int retries = 9);
 };

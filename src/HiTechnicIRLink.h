@@ -16,6 +16,9 @@ enum struct IRLinkComboDirectMode : byte
     BRAKE = 3
 };
 
+/**
+ * Outputs of a IR Receiver 
+ */
 enum struct IRLinkOutput : byte
 {
     // RED
@@ -24,6 +27,9 @@ enum struct IRLinkOutput : byte
     B = 1
 };
 
+/**
+ * PWM values for single output mode.
+ */
 enum struct IRLinkPWM : byte
 {
     FLOAT = 0b0000,
@@ -46,6 +52,16 @@ enum struct IRLinkPWM : byte
 
 /**
  * Control LEGO R/C trains and other motorized LEGO sets with the HiTechnic IRLink Sensor for the Mindstorms NXT. The IRLink uses Infrared signals to communicate with trains, Power Functions Motor controller and the Mindstorms RCX .
+ * 
+ * Wires on NXT jack plug.
+ * Wire colours may vary. Pin 1 is always end nearest latch.
+ * 1 White NC
+ * 2 Black GND
+ * 3 Red GND
+ * 4 Green +5V
+ * 5 Yellow SCL
+ * 6 Blue SDA
+ * Do not use i2c pullup resistor - already provided within sensor.
  * @see http://www.hitechnic.com/cgi-bin/commerce.cgi?preadd=action&key=NIL1046
  * @see lejos.nxt.addon.IRLink from LeJOS NXJ
  * @see LEGO Power Functions RC specification (offical document from LEGO group)

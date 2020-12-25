@@ -24,13 +24,14 @@ void setup()
   Serial.begin(115200);
 
   // Start the sensor
-  //s1.begin();
-  //s1.readVersion();
+  s1.begin();
+  // Wire.begin(tacho1Pin2, tacho1Pin1, 9768);
 }
 
 void loop()
 {
-  Wire.begin(tacho1Pin2, tacho1Pin1, 9768);
+
+  /*
   Wire.beginTransmission(0x02 >> 1);
   Wire.write(0x0);
   Wire.endTransmission(true);
@@ -52,6 +53,7 @@ void loop()
   Wire.readBytes(result, l);
 
   ESP_LOGV(TAG, "NXT ultrasonic sensor version: '%s'", result);
-
+  */
+  s1.readVersion();
   delay(250);
 }

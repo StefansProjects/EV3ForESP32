@@ -55,5 +55,9 @@ void loop()
   ESP_LOGV(TAG, "NXT ultrasonic sensor version: '%s'", result);
   */
   s1.readVersion();
-  delay(250);
+  s1.readProductID();
+  s1.readMeasurementUnit();
+  s1.readSensorType();
+  s1.readDistance();
+  delay(550);
 }

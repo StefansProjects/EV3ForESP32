@@ -34,7 +34,7 @@ private:
     const static byte READ_FACTORY_ZERO = 0x11;
     const static byte READ_FACTORY_SCALE_FACTOR = 0x12;
     const static byte READ_FACTORY_SCALE_DIVISOR = 0x13;
-    const static byte READ_FACTORY_MEASURMENT_UNIT = 0x14; // = 10E-2m
+    const static byte READ_MEASURMENT_UNIT = 0x14; // = 10E-2m
 
     // Commands for reading variables
     const static byte READ_WRITE_CONTINOUS_MEASURMENT_INTERVAAL = 0x40;
@@ -67,7 +67,6 @@ private:
 
     boolean sendCommmand(uint8_t command)
     {
-        ESP_LOGV(TAG, "  Sending commmand '%h' to NXT ultrasonic sensor", command);
         pinMode(_clkpin, INPUT); //Needed for writing to work
         digitalWrite(_clkpin, HIGH);
 
@@ -106,40 +105,80 @@ public:
 
     std::unique_ptr<byte[]> readVersion()
     {
-        ESP_LOGV(TAG, "Start reading NXT ultrasonic sensor version ...");
-
-        std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
         sendCommmand(READ_VERSION);
 
         const auto l = Wire.requestFrom(ADDR, 8);
-        ESP_LOGV(TAG, "  Read %d bytes from slave", l);
 
         byte *result = new byte[l];
         std::fill(result, result + l, 0);
         Wire.readBytes(result, l);
         Wire.flush();
 
-        ESP_LOGV(TAG, "NXT ultrasonic sensor version: '%s'", result);
+        ESP_LOGD(TAG, "NXT ultrasonic sensor version: '%s'", result);
 
         return std::unique_ptr<byte[]>(result);
     }
 
     std::unique_ptr<byte[]> readProductID()
     {
-        ESP_LOGV(TAG, "Start reading NXT ultrasonic sensor product id ...");
-
-        std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
         sendCommmand(READ_ID);
-        Wire.endTransmission(false);
-        Wire.beginTransmission(ADDR + 1);
 
-        byte *result = new byte[8];
-        std::fill(result, result + 8, 0);
-        Wire.readBytes(result, 8);
+        const auto l = Wire.requestFrom(ADDR, 8);
+
+        byte *result = new byte[l];
+        std::fill(result, result + l, 0);
+        Wire.readBytes(result, l);
         Wire.flush();
 
-        ESP_LOGV(TAG, "NXT ultrasonic product id: '%s'", result);
+        ESP_LOGD(TAG, "NXT ultrasonic product id: '%s'", result);
 
         return std::unique_ptr<byte[]>(result);
+    }
+
+    std::unique_ptr<byte[]> readSensorType()
+    {
+        sendCommmand(READ_TYPE);
+
+        const auto l = Wire.requestFrom(ADDR, 8);
+
+        byte *result = new byte[l];
+        std::fill(result, result + l, 0);
+        Wire.readBytes(result, l);
+        Wire.flush();
+
+        ESP_LOGD(TAG, "NXT ultrasonic sensor type: '%s'", result);
+
+        return std::unique_ptr<byte[]>(result);
+    }
+
+    std::unique_ptr<byte[]> readMeasurementUnit()
+    {
+        sendCommmand(READ_MEASURMENT_UNIT);
+
+        const auto l = Wire.requestFrom(ADDR, 8);
+
+        byte *result = new byte[l];
+        std::fill(result, result + l, 0);
+        Wire.readBytes(result, l);
+        Wire.flush();
+
+        ESP_LOGD(TAG, "NXT ultrasonic measurment unit: '%s'", result);
+
+        return std::unique_ptr<byte[]>(result);
+    }
+
+    /**
+     * Reads the current distance in cm (see readMeasurementUnit() for actual unit)
+     */
+    byte readDistance()
+    {
+        sendCommmand(READ_MEASURMENT0);
+        const auto l = Wire.requestFrom(ADDR, 1);
+
+        std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
+        Wire.readBytes(_buffer, 1);
+        Wire.flush();
+        ESP_LOGD(TAG, "NXT ultrasonic distance: %d cm", _buffer[0]);
+        return _buffer[0];
     }
 };

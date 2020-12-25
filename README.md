@@ -1,8 +1,8 @@
 # EV3ForESP32
 
-*Disclaimer*: LEGO®, EV3 and Powered UP are trademarks of the LEGO Group of companies which does not sponsor, authorize or endorse this project.
+*Disclaimer*: LEGO® and Powered UP are trademarks of the LEGO Group of companies which does not sponsor, authorize or endorse this project.
 
-__EV3ForESP32__ is an ESP32 Arduino libary for using both EV3 sensors and servo motors with an ESP32. The inital idea is to use it together with [Legoino](https://github.com/corneliusmunz/legoino) to build a custom Powered UP *compatible* hub which could reuse EV3 motors and sensors.
+__EV3ForESP32__ is an ESP32 Arduino libary for using both EV3 sensors and servo motors with an ESP32. The inital idea is to use it together with [Legoino](https://github.com/corneliusmunz/legoino) to build a custom Powered UP *compatible* hub which could reuse EV3 / NXT motors and sensors.
 
 ## State of the project
 
@@ -88,6 +88,10 @@ void setup() {
 
 You can use methods like `selectSensorMode` to select one of the supported sensor modes and set a callback for new messages from the sensor using `setMessageHandler`.
 The classes `EV3ColorSensor` and `EV3IRSensor` are thin wrappers around the `EV3SensorPort` providing a sensor specific API.
+
+### NXT Sensors
+
+Currently there is support for the NXT Ultrasonic Sensor (distance sensor) and the HiTechnic IRLink sensor (enables to control LEGO Power Functions IR receiver).
 
 ## Development
 

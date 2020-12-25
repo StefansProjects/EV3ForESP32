@@ -5,19 +5,6 @@
 #ifndef HiTechnicIRLink_h
 #define HiTechnicIRLink_h
 
-constexpr static char *TAG = "HiTechnicIRLink";
-
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)       \
-    (byte & 0x80 ? '1' : '0'),     \
-        (byte & 0x40 ? '1' : '0'), \
-        (byte & 0x20 ? '1' : '0'), \
-        (byte & 0x10 ? '1' : '0'), \
-        (byte & 0x08 ? '1' : '0'), \
-        (byte & 0x04 ? '1' : '0'), \
-        (byte & 0x02 ? '1' : '0'), \
-        (byte & 0x01 ? '1' : '0')
-
 /**
  * PF functions motor operations in Combo direct mode
  */
@@ -29,10 +16,37 @@ enum struct IRLinkComboDirectMode : byte
     BRAKE = 3
 };
 
+enum struct IRLinkOutput : byte
+{
+    A = 0,
+    B = 1
+};
+
+enum struct IRLinkPWM : byte
+{
+    FLOAT = 0b0000,
+    FORWARD_STEP1 = 0b0001,
+    FORWARD_STEP2 = 0b0010,
+    FORWARD_STEP3 = 0b0011,
+    FORWARD_STEP4 = 0b0100,
+    FORWARD_STEP5 = 0b0101,
+    FORWARD_STEP6 = 0b0110,
+    FORWARD_STEP7 = 0b0111,
+    BRAKE = 0b1000,
+    BACKWARD_STEP7 = 0b1001,
+    BACKWARD_STEP6 = 0b1010,
+    BACKWARD_STEP5 = 0b1011,
+    BACKWARD_STEP4 = 0b1100,
+    BACKWARD_STEP3 = 0b1101,
+    BACKWARD_STEP2 = 0b1110,
+    BACKWARD_STEP1 = 0b1111,
+};
+
 /**
  * Control LEGO R/C trains and other motorized LEGO sets with the HiTechnic IRLink Sensor for the Mindstorms NXT. The IRLink uses Infrared signals to communicate with trains, Power Functions Motor controller and the Mindstorms RCX .
  * @see http://www.hitechnic.com/cgi-bin/commerce.cgi?preadd=action&key=NIL1046
  * @see lejos.nxt.addon.IRLink from LeJOS NXJ
+ * @see LEGO Power Functions RC specification (offical document from LEGO group)
  */
 class HiTechnicIRLink
 {
@@ -55,7 +69,9 @@ private:
     const static byte TX_MODE_PF = 2;
 
     // PF Modes
-    const static byte PF_MODE_COMBO_DIRECT = 1;
+    const static byte PF_MODE_COMBO_DIRECT = 0b001;
+    const static byte PF_SINGLE_OUTPUT_MODE_PWM = 0b100;
+    const static byte PF_SINGLE_OUTPUT_MODE_CLR_SET_TGL_INC_DEC = 0b110;
 
     // IR PF signal encoding parameters
     const byte MAX_BITS = TX_MAX_BUFFER_LEN * 8;
@@ -85,79 +101,28 @@ private:
     const uint8_t _scl;
     TwoWire *_wire;
 
+    /**
+     * The toggle bit must switch between 0 and 1 between two following PF commands.
+     */
     byte toggle = 0;
 
     /**
      * Sets the k-bit in in array of bytes
      * @see https://stackoverflow.com/questions/2525310/how-to-define-and-work-with-an-array-of-bits-in-c
      */
-    inline void setBit(byte A[], int k)
-    {
-        int i = k / 8;   //gives the corresponding index in the array A
-        int pos = k % 8; //gives the corresponding bit position in A[i]
-
-        unsigned int flag = 1; // flag = 0000.....00001
-
-        flag = flag << (7 - pos); // flag = 0000...010...000   (shifted k positions)
-
-        A[i] = A[i] | flag; // Set the bit at the k-th position in A[i]
-    }
-
+    void setBit(byte A[], int k);
     /**
      * Clears the k-bit in in array of bytes
      * @see https://stackoverflow.com/questions/2525310/how-to-define-and-work-with-an-array-of-bits-in-c
      */
-    inline void
-    ClearBit(byte A[], int k)
-    {
-        A[k / 8] &= ~(1 << (k % 8));
-    }
+    void clearBit(byte A[], int k);
 
-    void sendPFCommand(int channel, byte mode, uint16_t data)
-    {
-        ESP_LOGV(TAG, "Sending PF command to channel %d with mode %d and data %h", channel, mode, data);
-        byte nibble1 = (byte)((toggle << 3) | channel);
-        byte lrc = (byte)(0xF ^ nibble1 ^ mode ^ data);
-        int pfData = (nibble1 << 12) | (mode << 8) | (data << 4) | lrc;
-
-        byte pfCommand[TX_MAX_BUFFER_LEN + 3];
-        std::fill(pfCommand, pfCommand + TX_MAX_BUFFER_LEN + 3, 0);
-        int nextBit = 0;
-
-        setBit(pfCommand, nextBit++);
-        nextBit += STOP_START_PAUSE;
-        for (int i = 15; i >= 0; i--)
-        {
-            setBit(pfCommand, nextBit++);
-            nextBit += ((pfData >> i) & 1) == 0 ? LOW_BIT_PAUSE : HIGH_BIT_PAUSE;
-        }
-        setBit(pfCommand, nextBit++);
-        nextBit += STOP_START_PAUSE;
-        toggle ^= 1;
-
-        ESP_LOGV(TAG, "PF command " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN "",
-                 BYTE_TO_BINARY(pfCommand[0]),
-                 BYTE_TO_BINARY(pfCommand[1]), BYTE_TO_BINARY(pfCommand[2]), BYTE_TO_BINARY(pfCommand[3]), BYTE_TO_BINARY(pfCommand[4]), BYTE_TO_BINARY(pfCommand[5]), BYTE_TO_BINARY(pfCommand[6]), BYTE_TO_BINARY(pfCommand[7]), BYTE_TO_BINARY(pfCommand[8]), BYTE_TO_BINARY(pfCommand[9]), BYTE_TO_BINARY(pfCommand[10]), BYTE_TO_BINARY(pfCommand[11]), BYTE_TO_BINARY(pfCommand[12]));
-
-        pfCommand[13] = TX_MAX_BUFFER_LEN;
-        pfCommand[14] = TX_MODE_PF;
-        pfCommand[15] = 1;
-
-        _wire->beginTransmission(ADDR);
-        _wire->write(TX_BUFFER);
-        _wire->write(pfCommand, TX_MAX_BUFFER_LEN + 3);
-        _wire->endTransmission(true);
-
-        _wire->flush();
-    }
+    /**
+     * Sends a raw power functions command. For the command format see the LEGO Power Functions RC specification
+     */
+    void sendPFCommand(int channel, byte mode, uint16_t data);
 
 public:
-    // PF motor operations
-    const static byte PF_FLOAT = 0;
-    const static byte PF_FORWARD = 1;
-    const static byte PF_BACKWARD = 2;
-    const static byte PF_BRAKE = 3;
-
     /**
      * Creates an HiTechnicIRLink using Wire hardware twi.
      */
@@ -175,15 +140,17 @@ public:
     /**
      * Initalizes all pins and the TWI transmission.
      */
-    void begin()
-    {
-        _wire->begin(_sda, _scl, I2C_FREQ);
-    }
+    void begin();
 
-    void sendPFComboDirect(int channel, IRLinkComboDirectMode opA, IRLinkComboDirectMode opB)
-    {
-        sendPFCommand(channel, PF_MODE_COMBO_DIRECT, static_cast<byte>(opB) << 2 | static_cast<byte>(opA));
-    }
+    /**
+     * Sends a power functions combo direct command to the given channel.
+     */
+    void sendPFComboDirect(int channel, IRLinkComboDirectMode opA, IRLinkComboDirectMode opB);
+
+    /**
+     * Sends a power functions single output mode command to the given channel and motor output.
+     */
+    void sendPFSingleOutputMode(int channel, IRLinkOutput output, IRLinkPWM value);
 };
 
 #endif

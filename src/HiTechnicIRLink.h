@@ -18,7 +18,9 @@ enum struct IRLinkComboDirectMode : byte
 
 enum struct IRLinkOutput : byte
 {
+    // RED
     A = 0,
+    // BLUE
     B = 1
 };
 
@@ -111,11 +113,6 @@ private:
      * @see https://stackoverflow.com/questions/2525310/how-to-define-and-work-with-an-array-of-bits-in-c
      */
     void setBit(byte A[], int k);
-    /**
-     * Clears the k-bit in in array of bytes
-     * @see https://stackoverflow.com/questions/2525310/how-to-define-and-work-with-an-array-of-bits-in-c
-     */
-    void clearBit(byte A[], int k);
 
     /**
      * Sends a raw power functions command. For the command format see the LEGO Power Functions RC specification

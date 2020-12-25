@@ -2,17 +2,6 @@
 
 constexpr static char *TAG = "HiTechnicIRLink";
 
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)       \
-    (byte & 0x80 ? '1' : '0'),     \
-        (byte & 0x40 ? '1' : '0'), \
-        (byte & 0x20 ? '1' : '0'), \
-        (byte & 0x10 ? '1' : '0'), \
-        (byte & 0x08 ? '1' : '0'), \
-        (byte & 0x04 ? '1' : '0'), \
-        (byte & 0x02 ? '1' : '0'), \
-        (byte & 0x01 ? '1' : '0')
-
 void HiTechnicIRLink::setBit(byte A[], int k)
 {
     int i = k / 8;   //gives the corresponding index in the array A
@@ -23,11 +12,6 @@ void HiTechnicIRLink::setBit(byte A[], int k)
     flag = flag << (7 - pos); // flag = 0000...010...000   (shifted k positions)
 
     A[i] = A[i] | flag; // Set the bit at the k-th position in A[i]
-}
-
-void HiTechnicIRLink::clearBit(byte A[], int k)
-{
-    A[k / 8] &= ~(1 << (k % 8));
 }
 
 void HiTechnicIRLink::sendPFCommand(int channel, byte mode, uint16_t data)
@@ -52,10 +36,6 @@ void HiTechnicIRLink::sendPFCommand(int channel, byte mode, uint16_t data)
     nextBit += STOP_START_PAUSE;
     toggle ^= 1;
 
-    ESP_LOGV(TAG, "PF command " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN " " BYTE_TO_BINARY_PATTERN "",
-             BYTE_TO_BINARY(pfCommand[0]),
-             BYTE_TO_BINARY(pfCommand[1]), BYTE_TO_BINARY(pfCommand[2]), BYTE_TO_BINARY(pfCommand[3]), BYTE_TO_BINARY(pfCommand[4]), BYTE_TO_BINARY(pfCommand[5]), BYTE_TO_BINARY(pfCommand[6]), BYTE_TO_BINARY(pfCommand[7]), BYTE_TO_BINARY(pfCommand[8]), BYTE_TO_BINARY(pfCommand[9]), BYTE_TO_BINARY(pfCommand[10]), BYTE_TO_BINARY(pfCommand[11]), BYTE_TO_BINARY(pfCommand[12]));
-
     pfCommand[13] = TX_MAX_BUFFER_LEN;
     pfCommand[14] = TX_MODE_PF;
     pfCommand[15] = 1;
@@ -73,12 +53,31 @@ void HiTechnicIRLink::begin()
     _wire->begin(_sda, _scl, I2C_FREQ);
 }
 
+char *comboDirectModeToString(IRLinkComboDirectMode op)
+{
+    switch (static_cast<byte>(op))
+    {
+    case 0b00:
+        return "float";
+    case 0b01:
+        return "forward";
+    case 0b10:
+        return "backward";
+    case 0b11:
+        return "brake";
+    default:
+        return "[unknown]";
+    }
+}
+
 void HiTechnicIRLink::sendPFComboDirect(int channel, IRLinkComboDirectMode opA, IRLinkComboDirectMode opB)
 {
+    ESP_LOGD(TAG, "IRLink PF combo direct mode for channel %d red = %s and blue = %s", channel, comboDirectModeToString(opA), comboDirectModeToString(opB));
     sendPFCommand(channel, PF_MODE_COMBO_DIRECT, static_cast<byte>(opB) << 2 | static_cast<byte>(opA));
 }
 
 void HiTechnicIRLink::sendPFSingleOutputMode(int channel, IRLinkOutput output, IRLinkPWM value)
 {
+    ESP_LOGD(TAG, "IRLink PF single output mode for channel %d, %s output and value %x", channel, output == IRLinkOutput::A ? "red" : "blue", static_cast<byte>(value));
     sendPFCommand(channel, output == IRLinkOutput::A ? PF_SINGLE_OUTPUT_MODE_PWM : (PF_SINGLE_OUTPUT_MODE_PWM + 1), static_cast<byte>(value));
 }

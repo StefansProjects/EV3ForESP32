@@ -1,6 +1,8 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include <memory>
+
+#ifndef NXTUltrasonicSensor_h
+#define NXTUltrasonicSensor_h
 
 /*
  * Access a Lego Mindstorms NXT ultrasonic sensors.
@@ -22,8 +24,6 @@
 class NXTUltrasonicSensor
 {
 private:
-    constexpr static char *TAG = "NXTUltrasonicSensor";
-
     const static byte ADDR = 0x02 >> 1;
     const static uint I2C_FREQ = 9768; // 9600 by spec, but minium freq is 9768
 
@@ -58,127 +58,48 @@ private:
     const static byte CMD_EVENT_CAPTURE = 0x03;
     const static byte CMD_WARM_RESET = 0x04;
 
-    uint8_t _sda;
-    uint8_t _scl;
-    uint8_t _clkpin;
+    const uint8_t _sda;
+    const uint8_t _scl;
+    const uint8_t _clkpin;
 
-    const static int BUFFER_SIZE = 9;
-    byte _buffer[BUFFER_SIZE]; // Use static buffer to avoid heap fragmentation
-
-    boolean sendCommmand(uint8_t command)
-    {
-        pinMode(_clkpin, INPUT); //Needed for writing to work
-        digitalWrite(_clkpin, HIGH);
-
-        Wire.beginTransmission(ADDR);
-        const auto result = Wire.write(command);
-        if (result != 1)
-        {
-            ESP_LOGE(TAG, "  Error '%d' sending command '%h' to NXT ultrasonic sensor", result, command);
-            return false;
-        }
-        Wire.endTransmission(true);
-
-        Wire.flush();
-
-        delayMicroseconds(60); //Needed for receiving to work
-        pinMode(_clkpin, OUTPUT);
-        digitalWrite(_clkpin, LOW);
-        delayMicroseconds(34);
-        pinMode(_clkpin, INPUT);
-        digitalWrite(_clkpin, HIGH);
-        delayMicroseconds(60);
-        return true;
-    }
+    /**
+     * Sends a command to the sensor. Performs the additional SCL wiggle necessary to support the broken implementation.
+     */
+    boolean sendCommmand(uint8_t command);
 
 public:
     NXTUltrasonicSensor(uint8_t sda, uint8_t scl, uint8_t clkpin) : _sda(sda), _scl(scl), _clkpin(clkpin)
     {
     }
 
-    void begin()
-    {
-        pinMode(_clkpin, INPUT);
-        digitalWrite(_clkpin, HIGH);
-        Wire.begin(_sda, _scl, I2C_FREQ);
-    }
+    /**
+     * Initalizes all pins and the TWI transmission.
+     */
+    void begin();
 
-    std::unique_ptr<byte[]> readVersion()
-    {
-        sendCommmand(READ_VERSION);
+    /**
+     * Reads the sensor version as string (V1.0)
+     */
+    std::unique_ptr<byte[]> readVersion();
 
-        const auto l = Wire.requestFrom(ADDR, 8);
+    /**
+     * Reads the product ID (LEGO)
+     */
+    std::unique_ptr<byte[]> readProductID();
 
-        byte *result = new byte[l];
-        std::fill(result, result + l, 0);
-        Wire.readBytes(result, l);
-        Wire.flush();
-
-        ESP_LOGD(TAG, "NXT ultrasonic sensor version: '%s'", result);
-
-        return std::unique_ptr<byte[]>(result);
-    }
-
-    std::unique_ptr<byte[]> readProductID()
-    {
-        sendCommmand(READ_ID);
-
-        const auto l = Wire.requestFrom(ADDR, 8);
-
-        byte *result = new byte[l];
-        std::fill(result, result + l, 0);
-        Wire.readBytes(result, l);
-        Wire.flush();
-
-        ESP_LOGD(TAG, "NXT ultrasonic product id: '%s'", result);
-
-        return std::unique_ptr<byte[]>(result);
-    }
-
-    std::unique_ptr<byte[]> readSensorType()
-    {
-        sendCommmand(READ_TYPE);
-
-        const auto l = Wire.requestFrom(ADDR, 8);
-
-        byte *result = new byte[l];
-        std::fill(result, result + l, 0);
-        Wire.readBytes(result, l);
-        Wire.flush();
-
-        ESP_LOGD(TAG, "NXT ultrasonic sensor type: '%s'", result);
-
-        return std::unique_ptr<byte[]>(result);
-    }
-
-    std::unique_ptr<byte[]> readMeasurementUnit()
-    {
-        sendCommmand(READ_MEASURMENT_UNIT);
-
-        const auto l = Wire.requestFrom(ADDR, 8);
-
-        byte *result = new byte[l];
-        std::fill(result, result + l, 0);
-        Wire.readBytes(result, l);
-        Wire.flush();
-
-        ESP_LOGD(TAG, "NXT ultrasonic measurment unit: '%s'", result);
-
-        return std::unique_ptr<byte[]>(result);
-    }
+    /**
+     * Reads the sensor type (Sonar)
+     */
+    std::unique_ptr<byte[]> readSensorType();
+    /**
+     * Reads the measurment unit as string. (10E-2m)
+     */
+    std::unique_ptr<byte[]> readMeasurementUnit();
 
     /**
      * Reads the current distance in cm (see readMeasurementUnit() for actual unit)
      */
-    byte readDistance()
-    {
-        sendCommmand(READ_MEASURMENT0);
-        const auto l = Wire.requestFrom(ADDR, 1);
-
-        std::fill(_buffer, _buffer + BUFFER_SIZE, 0);
-        Wire.readBytes(_buffer, 1);
-        Wire.flush();
-        ESP_LOGD(TAG, "NXT ultrasonic distance: %d cm", _buffer[0]);
-        return _buffer[0];
-    }
+    byte readDistance();
 };
+
+#endif

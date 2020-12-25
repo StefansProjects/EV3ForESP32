@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <memory>
+#include <Wire.h>
 
 #ifndef NXTUltrasonicSensor_h
 #define NXTUltrasonicSensor_h
@@ -61,6 +62,7 @@ private:
     const uint8_t _sda;
     const uint8_t _scl;
     const uint8_t _clkpin;
+    TwoWire *_wire;
 
     /**
      * Sends a command to the sensor. Performs the additional SCL wiggle necessary to support the broken implementation.
@@ -68,7 +70,17 @@ private:
     boolean sendCommmand(uint8_t command);
 
 public:
-    NXTUltrasonicSensor(uint8_t sda, uint8_t scl, uint8_t clkpin) : _sda(sda), _scl(scl), _clkpin(clkpin)
+    /**
+     * Creates an NXTUltrasonicSensor using Wire hardware twi.
+     */
+    NXTUltrasonicSensor(uint8_t sda, uint8_t scl, uint8_t clkpin) : _sda(sda), _scl(scl), _clkpin(clkpin), _wire(&Wire)
+    {
+    }
+
+    /**
+     * Creates an NXTUltrasonicSensor using the given TwoWire instance.
+     */
+    NXTUltrasonicSensor(TwoWire *wire, uint8_t sda, uint8_t scl, uint8_t clkpin) : _sda(sda), _scl(scl), _clkpin(clkpin), _wire(wire)
     {
     }
 

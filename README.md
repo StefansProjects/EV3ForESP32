@@ -17,6 +17,8 @@ The level shifter to convert both quadrature encoder signals and uart communicti
 
 ![Sensor connection scheme](https://raw.githubusercontent.com/StefansProjects/EV3ForESP32/main/doc/sensor_connection.png)
 
+For communication with NXT sensors remove the 10k pullups on the 5V side!
+
 To drive the motors, I use a `DRV8833 Dual H-Bridge Motor Driver` (you can find simple boards for prototyping on the usual platforms). Its limits for both voltage and current are close to the ones for the EV3 motors, so its a perfect fit to drive two EV3 motors. But you can use any other motor driver.
 
 You can connect both the inputs of the h-bridge and the 3V3 outputs of the level-shift circuit to any GPIO of the ESP32.

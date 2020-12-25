@@ -13,7 +13,7 @@ boolean NXTUltrasonicSensor::sendCommmand(uint8_t command)
     const auto result = _wire->write(command);
     if (result != 1)
     {
-        ESP_LOGE(TAG, "  Error '%d' sending command '%h' to NXT ultrasonic sensor", result, command);
+        ESP_LOGE(TAG, "  Error '%d' sending command '%x' to NXT ultrasonic sensor", result, command);
         return false;
     }
     _wire->endTransmission(true);

@@ -66,25 +66,12 @@ The `begin` method starts a new FreeRTOS task to start the self-introduction of 
 
 ```C++
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
-TaskHandle_t sensorHandle;
 
-void setupSensor(void *param)
-{
-  sensor.begin([](EV3SensorPort *p) {
+void setup() {
+ sensor.begin([](EV3SensorPort *p) {
     Serial.print("Found sensor of type ");
     Serial.println(p->getCurrentConfig()->type, HEX);
   });
-}
-
-void setup() {
- xTaskCreate(
-      &setupSensor,
-      "S1",
-      50000,
-      nullptr,
-      1,
-      &sensorHandle // Task handle
-  );
 }
 ```
 

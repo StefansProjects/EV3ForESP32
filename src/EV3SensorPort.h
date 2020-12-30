@@ -77,6 +77,13 @@ private:
 
     TaskHandle_t _sensorHandle;
 
+    /**
+     * Time in ms to wait for messages from the sensor before restarting the protocol
+     */
+    const static unsigned int TIMEOUT = 10000;
+
+    int timeout_cnt = TIMEOUT;
+
     /*
      * Utility method to bind a class method to a FreeRTOS task.
      * 

@@ -41,6 +41,7 @@ byte EV3SensorPort::readNextAvailableByte()
             message = _connection->read();
             break;
         }
+        vTaskDelay(1);
     }
     return message;
 }
@@ -399,6 +400,7 @@ void EV3SensorPort::sensorInit()
         this->sensorCommThread();
     }
     ESP_LOGD(TAG, "Restarting sensor init phase ...");
+    vTaskDelay(TIME_BEFORE_RESTART);
     sensorInit();
 }
 
@@ -439,6 +441,7 @@ EV3SensorInfo *EV3SensorPort::getInfoForMode(uint8_t mode)
 
 void EV3SensorPort::sensorCommThread()
 {
+    timeout_cnt = millis() + TIMEOUT;
     for (;;)
     {
         xSemaphoreTake(_serialMutex, portMAX_DELAY);
@@ -460,6 +463,7 @@ void EV3SensorPort::sensorCommThread()
                     {
                         _onMessage(mode, _buffer + 1, msgLenght);
                     }
+                    timeout_cnt = millis() + TIMEOUT;
                 }
                 else
                 {
@@ -471,6 +475,13 @@ void EV3SensorPort::sensorCommThread()
 
         auto current_timestamp = millis();
         auto delta_time = current_timestamp - this->lastNACKSended;
+
+        if (timeout_cnt <= current_timestamp)
+        {
+            ESP_LOGD(TAG, "EV3 Sensor port: Timeout occured. No messages for %d ms. Restart ...", TIMEOUT);
+            break;
+        }
+
         if (delta_time > 90)
         {
             xSemaphoreTake(_serialMutex, portMAX_DELAY);

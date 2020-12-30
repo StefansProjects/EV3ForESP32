@@ -2,12 +2,15 @@
 #include <Arduino.h>
 #include "EV3SensorPort.h"
 #include "EV3ColorSensor.h"
+#include <SoftwareSerial.h>
 
 const int motor1Pin1 = 27;
 const int motor1Pin2 = 26;
 const int tacho1Pin1 = 18;
 const int tacho1Pin2 = 19;
 
+// SoftwareSerial swSer;
+// EV3SensorPort sensor(&swSer, [](int v) { swSer.begin(v, SWSERIAL_8N1, tacho1Pin2, tacho1Pin1); });
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, tacho1Pin2, tacho1Pin1); });
 EV3ColorSensor color(&sensor);
 EV3ColorSensorColor prev = EV3ColorSensorColor::NONE;

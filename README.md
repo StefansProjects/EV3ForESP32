@@ -61,10 +61,12 @@ In the first phase the sensor introduces itself, all its supported modes, the ta
 
 Fortunately some guys have decoded the protocol, so one can use the work from the [leJOS Team ](https://sourceforge.net/p/lejos/wiki/UART%20Sensor%20Protocol/) and the documentation from [EV3DEV.ORG](http://docs.ev3dev.org/projects/lego-linux-drivers/en/ev3dev-jessie/sensor_data.html) to implement the communication.
 
-For the whole implementation I used a callback-oriented architecture. The main class `EV3SensorPort` takes a `Stream` implementation (e.g `HardwareSerial`. I tried using plerup/EspSoftwareSerial, too, but I had issues with using it in FreeRTOS tasks.) and a callback method to switch the baudrate of the `Stream`.
+For the whole implementation I used a callback-oriented architecture. The main class `EV3SensorPort` takes a `Stream` implementation (e.g `HardwareSerial`. The software serial implementation plerup/EspSoftwareSerial is working, too.) and a callback method to switch the baudrate of the `Stream`.
 The `begin` method starts a new FreeRTOS task to start the self-introduction of the sensor. It takes one argument, a callback called after the introduction phase is finished and the the sensor is ready to receive the mode and deliver data. Using `getCurrentConfig` you can get all the information delivered by the sensor in the first phase. The `type` of sensor is the most interesting information (Color sensor = 29, IR Sensor = 33).
 
 ```C++
+// SoftwareSerial swSer;
+// EV3SensorPort sensor(&swSer, [](int v) { swSer.begin(v, SWSERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
 
 void setup() {

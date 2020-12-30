@@ -66,7 +66,7 @@ The `begin` method starts a new FreeRTOS task to start the self-introduction of 
 
 ```C++
 // SoftwareSerial swSer;
-// EV3SensorPort sensor(&swSer, [](int v) { swSer.begin(v, SWSERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
+// EV3SensorPort sensor(&swSer, [](int v) { swSer.end(); swSer.begin(v, SWSERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
 EV3SensorPort sensor(&Serial1, [](int v) { Serial1.begin(v, SERIAL_8N1, ESP32_TACHO2, ESP32_TACHO1); });
 
 void setup() {
